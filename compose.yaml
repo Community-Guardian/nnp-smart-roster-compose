@@ -1,0 +1,175 @@
+# smartAttend System Infrastructure
+# 
+# This Docker Compose file defines a complete infrastructure for the smartAttend system platform,
+# orchestrating multiple services that work together to provide a comprehensive solution for
+# smartAttend tracking, data collection, analysis, and management.
+#
+# SERVICES:
+# ---------
+# - postgres: PostgreSQL database server that stores all persistent application data
+#            including smartAttend records, user information, and system settings
+# - smartAttendsystembackend: Python-based web application backend that handles business logic, API endpoints,
+#          authentication, and smartAttend management
+# - nginx: High-performance web server that serves static files and acts as a reverse proxy
+#         for the smartAttendsystembackend application
+# - redis: In-memory data store used for caching, session management, and task queueing
+#         between components
+# - ftp: File Transfer Protocol server for handling file uploads and system backups
+# - pgbouncer: Connection pooler for PostgreSQL that improves database connection efficiency
+#
+# VOLUMES:
+# --------
+# - postgres_data: Persists database files across container restarts
+# - static_volume: Stores smartAttendsystembackend static assets (CSS, JS, images)
+# - media_volume: Stores user-uploaded content and generated files
+# - logs: Contains application logs for monitoring and troubleshooting
+#
+# NETWORKING:
+# ----------
+# All services communicate through the smartAttend-backend-network bridge network
+
+
+services:
+
+  postgres:
+    image: postgres:14
+    # ports:
+    #   - "5432:5432"  # Uncomment for direct database access from host
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}  # Database name from .env
+      POSTGRES_USER: ${POSTGRES_USER}  # Database user from .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Database password from .env
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=64MB"] #Tune PostgreSQL for IoT workloads by adding shared_buffers, work_mem, and wal_buffers
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persistent database storage
+    networks:
+      - smartAttend-backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  smartAttendsystembackend:
+    image: nrad8393/smartAttend-system-backend-server:latest
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - static_volume:/app/smartAttend/static
+      - media_volume:/app/smartAttend/media
+      - logs:/var/log 
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 3
+    restart: unless-stopped
+    networks:
+      - smartAttend-backend-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, sys, socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect(('localhost', 8000)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  smartAttendsystemfrontend:
+    image: nrad8393/smartAttend-system-frontend-server:latest
+    environment:
+      NODE_ENV: production # Set NODE_ENV to production
+    depends_on:
+      smartAttendsystembackend:
+        condition: service_healthy
+    # health check for frontend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - smartAttend-backend-network
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx:/etc/nginx/conf.d # Nginx configuration
+      - static_volume:/app/smartAttend/static  # Serve smartAttendsystembackend static files
+      - media_volume:/app/smartAttend/media  # Serve user-uploaded media
+    ports:
+      - "33:80"  # Expose web server on port 801
+    depends_on:
+      smartAttendsystembackend:
+        condition: service_healthy
+    networks:
+      - smartAttend-backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:alpine
+    restart: always
+    # ports:
+    #   - "6379:6379"  # Uncomment for direct Redis access from host
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - smartAttend-backend-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  ftp:
+    image: fauria/vsftpd
+    environment:
+      - FTP_USER=${FTP_USER}  # FTP username from .env
+      - FTP_PASS=${FTP_PASS}  # FTP password from .env
+      - PASV_ADDRESS=${PASV_ADDRESS}  # Server address for passive mode
+      - PASV_MIN_PORT=21100  # Passive port range minimum
+      - PASV_MAX_PORT=21110  # Passive port range maximum
+      - FILE_OPEN_MODE=0666  # Default file permissions
+      - LOCAL_UMASK=022  # Default directory permissions
+    ports:
+      - "20:20"  # FTP data transfer port
+      - "21:21"  # FTP command port
+      - "21100-21110:21100-21110"  # Passive port range
+    volumes:
+      - static_volume:/home/vsftpd/static  # Access to static files
+      - media_volume:/home/vsftpd/media  # Access to media files
+    networks:
+      - smartAttend-backend-network
+    healthcheck:
+      test: ["CMD", "netstat", "-tln", "|", "grep", ":21"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  pgbouncer:
+    image: edoburu/pgbouncer
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POOL_MODE: transaction
+    depends_on:
+      - postgres
+
+# Persistent data volumes
+volumes:
+  postgres_data:  # PostgreSQL database files
+  static_volume:  # smartAttendsystembackend static files (CSS, JS, images)
+  media_volume:   # User uploaded files
+  logs:           # Application logs
+
+
+# Network configuration
+networks:
+  smartAttend-backend-network:
+    driver: bridge  # Standard bridge network for container communication

@@ -1,6 +1,51 @@
-composer.phar
-/vendor/
+# Ignore sensitive environment files
+.env
+*.env
+.env.local
+.env.production
+.env.development
+secrets/
 
-# Commit your application's lock file https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control
-# You may choose to ignore a library lock file http://getcomposer.org/doc/02-libraries.md#lock-file
-# composer.lock
+# Ignore docker-compose override files
+docker-compose.override.yml
+
+# Ignore logs and temp files
+logs/
+*.log
+debug.log
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore Python cache if using Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
+# Ignore node_modules if using Next.js/React
+node_modules/
+.next/
+dist/
+
+# Ignore built Docker images
+*.tar
+*.img
+
+# Ignore Docker volumes and data
+volumes/
+data/
+db_data/
+
+# Ignore IDE files
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore compiled and temporary files
+*.swp
+*.swo
+*.bak
