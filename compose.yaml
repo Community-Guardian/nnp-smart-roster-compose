@@ -52,7 +52,7 @@ services:
       start_period: 10s
 
   smartAttendsystembackend:
-    image: nrad8393/smartAttend-system-backend-server:latest
+    image: nrad8393/smart-attend-system-backend-server:latest
     env_file:
       - .env
     environment:
