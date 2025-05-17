@@ -50,7 +50,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports: []  # No host exposure, only internal
+    depends_on:
+      - postgres
+    networks:
+      - smartAttend-backend-network
   smartAttendsystembackend:
     image: nrad8393/smart-attend-system-backend-server:latest
     env_file:
