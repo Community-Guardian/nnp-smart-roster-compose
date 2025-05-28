@@ -109,7 +109,7 @@ services:
       - static_volume:/app/smartAttend/static  # Serve smartAttendsystembackend static files
       - media_volume:/app/smartAttend/media  # Serve user-uploaded media
     ports:
-      - "33:80"  # Expose web server on port 33
+      - "443:80"  # Expose web server on port 443
     depends_on:
       smartAttendsystembackend:
         condition: service_healthy
