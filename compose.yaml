@@ -203,8 +203,8 @@ services:
       MAX_DB_CONNECTIONS: 50
       IGNORE_STARTUP_PARAMETERS: extra_float_digits
     volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
     networks:
       - database-network
       - app-network
