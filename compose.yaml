@@ -202,14 +202,14 @@ services:
       RESERVE_POOL_SIZE: 10
       MAX_DB_CONNECTIONS: 50      # Authentication
       AUTH_TYPE: plain
-      # Performance tuning
-      SERVER_RESET_QUERY: "DISCARD ALL"
+      # Performance tuning      SERVER_RESET_QUERY: "DISCARD ALL"
       SERVER_LIFETIME: 3600
       SERVER_IDLE_TIMEOUT: 600
       CLIENT_IDLE_TIMEOUT: 600
     networks:
       - database-network
-      - app-network    restart: unless-stopped
+      - app-network
+    restart: unless-stopped
     depends_on:
       postgres-primary:
         condition: service_healthy
