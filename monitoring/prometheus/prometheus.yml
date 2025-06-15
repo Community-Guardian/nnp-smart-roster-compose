@@ -1,0 +1,182 @@
+# =============================================================================
+# PROMETHEUS CONFIGURATION - Production Monitoring
+# SmartAttend System Monitoring Configuration
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'smartattend-production'
+    datacenter: 'aws-ecs'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Rules for alerting
+rule_files:
+  - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # =============================================================================
+  # SYSTEM METRICS
+  # =============================================================================
+  
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Node Exporter - System metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # =============================================================================
+  # DATABASE METRICS
+  # =============================================================================
+  
+  # PostgreSQL metrics
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'postgres-primary'
+
+  # =============================================================================
+  # CACHE METRICS
+  # =============================================================================
+  
+  # Redis metrics
+  - job_name: 'redis-master'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'redis-master'
+
+  # =============================================================================
+  # WEB SERVER METRICS
+  # =============================================================================
+  
+  # Nginx metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # =============================================================================
+  # APPLICATION METRICS
+  # =============================================================================
+  
+  # Backend application metrics
+  - job_name: 'smartattend-backend'
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        port: 8000
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '.*smartAttendsystembackend.*'
+        action: keep
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - source_labels: [__meta_docker_container_id]
+        target_label: container_id
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Frontend application metrics
+  - job_name: 'smartattend-frontend'
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        port: 3000
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '.*smartAttendsystemfrontend.*'
+        action: keep
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - source_labels: [__meta_docker_container_id]
+        target_label: container_id
+    scrape_interval: 30s
+    metrics_path: /api/metrics
+
+  # =============================================================================
+  # CONTAINER METRICS
+  # =============================================================================
+  
+  # Docker containers metrics via cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # =============================================================================
+  # BUSINESS METRICS
+  # =============================================================================
+  
+  # Custom application metrics endpoint
+  - job_name: 'smartattend-business-metrics'
+    static_configs:
+      - targets: ['smartAttendsystembackend:8000']
+    scrape_interval: 60s
+    metrics_path: /api/v1/metrics/business
+    basic_auth:
+      username: 'metrics'
+      password: '${METRICS_PASSWORD}'
+
+  # =============================================================================
+  # EXTERNAL SERVICES MONITORING
+  # =============================================================================
+  
+  # Blackbox exporter for external endpoint monitoring
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://your-domain.com
+        - https://your-domain.com/health
+        - https://your-domain.com/api/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # SSL certificate expiry monitoring
+  - job_name: 'blackbox-ssl'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - your-domain.com:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

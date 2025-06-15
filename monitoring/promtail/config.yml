@@ -1,0 +1,204 @@
+# =============================================================================
+# PROMTAIL CONFIGURATION - Log Collection
+# Collects logs from all services and forwards to Loki
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # =============================================================================
+  # APPLICATION LOGS
+  # =============================================================================
+  
+  # Django application logs
+  - job_name: smartattend-backend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: smartattend-backend
+          service: application
+          __path__: /var/log/app/*backend*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) \[(?P<level>\w+)\] (?P<logger>[\w.]+): (?P<message>.*)'
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+          location: UTC
+
+  # Celery worker logs
+  - job_name: celery-workers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: celery-workers
+          service: workers
+          __path__: /var/log/app/*celery*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      - regex:
+          expression: '^\[(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}): (?P<level>\w+)/(?P<worker>\w+)\] (?P<message>.*)'
+      - labels:
+          level:
+          worker:
+
+  # =============================================================================
+  # DATABASE LOGS
+  # =============================================================================
+  
+  # PostgreSQL logs
+  - job_name: postgresql
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: postgresql
+          service: database
+          __path__: /var/log/postgresql/*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{3} \w+) \[(?P<pid>\d+)\]: \[(?P<line>\d+)-(?P<session>\d+)\] user=(?P<user>\w*),db=(?P<database>\w*),app=(?P<app>\w*),client=(?P<client>[\d.]*) (?P<level>\w+): (?P<message>.*)'
+      - labels:
+          level:
+          user:
+          database:
+          app:
+          client:
+
+  # =============================================================================
+  # WEB SERVER LOGS
+  # =============================================================================
+  
+  # Nginx access logs
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-access
+          service: webserver
+          log_type: access
+          __path__: /var/log/nginx/access.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<time_local>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<bytes_sent>\d+) "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)" "(?P<forwarded_for>[^"]*)" rt=(?P<request_time>\S+) uct="(?P<upstream_connect_time>\S+)" uht="(?P<upstream_header_time>\S+)" urt="(?P<upstream_response_time>\S+)"'
+      - labels:
+          method:
+          status:
+          remote_addr:
+      - timestamp:
+          source: time_local
+          format: '02/Jan/2006:15:04:05 -0700'
+
+  # Nginx error logs
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-error
+          service: webserver
+          log_type: error
+          __path__: /var/log/nginx/error.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?P<level>\w+)\] (?P<pid>\d+)#(?P<tid>\d+): (?P<message>.*)'
+      - labels:
+          level:
+
+  # =============================================================================
+  # CACHE LOGS
+  # =============================================================================
+  
+  # Redis logs
+  - job_name: redis
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: redis
+          service: cache
+          __path__: /var/log/redis/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<pid>\d+):(?P<role>\w) (?P<timestamp>\d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2}.\d{3}) (?P<level>\w) (?P<message>.*)'
+      - labels:
+          level:
+          role:
+
+  # =============================================================================
+  # DOCKER CONTAINER LOGS
+  # =============================================================================
+  
+  # Docker container logs
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - source_labels: ['__meta_docker_container_label_logging_job']
+        target_label: 'job'
+    pipeline_stages:
+      - cri: {}
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z) (?P<stream>stdout|stderr) (?P<flags>\w) (?P<message>.*)'
+      - labels:
+          stream:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+  # =============================================================================
+  # SYSTEM LOGS
+  # =============================================================================
+  
+  # System logs (if available)
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          service: system
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w{3} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<hostname>\S+) (?P<service>\S+)(\[(?P<pid>\d+)\])?: (?P<message>.*)'
+      - labels:
+          hostname:
+          service:
+      - timestamp:
+          source: timestamp
+          format: 'Jan 2 15:04:05'

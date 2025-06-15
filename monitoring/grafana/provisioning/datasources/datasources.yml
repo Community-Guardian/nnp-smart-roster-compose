@@ -1,0 +1,49 @@
+apiVersion: 1
+
+datasources:
+  # Prometheus datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+
+  # Loki datasource for logs
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: "prometheus"
+          matcherRegex: "trace_id=(\\w+)"
+          name: "Trace ID"
+          url: "http://jaeger:16686/trace/$${__value.raw}"
+
+  # Jaeger datasource for tracing
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: false
+
+  # PostgreSQL datasource for business metrics
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres-primary:5432
+    database: "${POSTGRES_DB}"
+    user: "${POSTGRES_USER}"
+    secureJsonData:
+      password: "${POSTGRES_PASSWORD}"
+    jsonData:
+      sslmode: "disable"
+      postgresVersion: 1500
+      timescaledb: false

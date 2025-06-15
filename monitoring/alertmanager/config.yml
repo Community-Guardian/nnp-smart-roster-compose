@@ -1,0 +1,237 @@
+# =============================================================================
+# ALERTMANAGER CONFIGURATION
+# Production alerting and notification configuration
+# =============================================================================
+
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${ALERT_EMAIL_FROM}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+  # Slack configuration
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+  # Default template path
+  templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 30m
+      
+    # Database alerts
+    - match:
+        service: database
+      receiver: 'database-team'
+      group_wait: 30s
+      repeat_interval: 2h
+      
+    # Application alerts
+    - match:
+        service: application
+      receiver: 'dev-team'
+      group_wait: 1m
+      repeat_interval: 2h
+      
+    # Security alerts
+    - match:
+        service: security
+      receiver: 'security-team'
+      group_wait: 10s
+      repeat_interval: 1h
+      
+    # Infrastructure alerts
+    - match:
+        service: infrastructure
+      receiver: 'ops-team'
+      group_wait: 30s
+      repeat_interval: 2h
+
+# Inhibit rules to prevent spam
+inhibit_rules:
+  # Inhibit any warning-level notifications if the same alert is already critical
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+  # Inhibit application alerts if the entire system is down
+  - source_match:
+      alertname: 'ApplicationDown'
+    target_match_re:
+      alertname: '(HighHTTPErrorRate|HighResponseTime|CeleryQueueBackedUp)'
+    equal: ['instance']
+
+# Receiver configurations
+receivers:
+  # Default receiver (fallback)
+  - name: 'default'
+    email_configs:
+      - to: '${DEFAULT_ALERT_EMAIL}'
+        subject: '[ALERT] SmartAttend System Alert'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Service: {{ .Labels.service }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: '${CRITICAL_ALERT_EMAIL}'
+        subject: '🚨 [CRITICAL] SmartAttend System Alert'
+        html: |
+          <h2>🚨 Critical Alert - SmartAttend System</h2>
+          {{ range .Alerts }}
+          <div style="background-color: #ff4444; color: white; padding: 10px; margin: 10px 0; border-radius: 5px;">
+            <h3>{{ .Annotations.summary }}</h3>
+            <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+            <p><strong>Service:</strong> {{ .Labels.service }}</p>
+            <p><strong>Time:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05" }}</p>
+            <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
+          </div>
+          {{ end }}
+          
+    slack_configs:
+      - api_url: '${SLACK_CRITICAL_WEBHOOK}'
+        channel: '#alerts-critical'
+        title: '🚨 Critical Alert - SmartAttend'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+        color: 'danger'
+
+    # PagerDuty integration for critical alerts
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_ROUTING_KEY}'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        details:
+          service: '{{ range .Alerts }}{{ .Labels.service }}{{ end }}'
+          instance: '{{ range .Alerts }}{{ .Labels.instance }}{{ end }}'
+
+  # Database team alerts
+  - name: 'database-team'
+    email_configs:
+      - to: '${DATABASE_TEAM_EMAIL}'
+        subject: '[DB ALERT] SmartAttend Database Issue'
+        body: |
+          Database Alert Detected:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Database: {{ .Labels.datname }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          Troubleshooting Steps:
+          1. Check database logs: docker logs postgres-primary
+          2. Check connection pool: docker logs pgbouncer
+          3. Monitor resource usage in Grafana
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${SLACK_DB_WEBHOOK}'
+        channel: '#db-alerts'
+        title: '🗄️ Database Alert - SmartAttend'
+        color: 'warning'
+
+  # Development team alerts
+  - name: 'dev-team'
+    email_configs:
+      - to: '${DEV_TEAM_EMAIL}'
+        subject: '[APP ALERT] SmartAttend Application Issue'
+        body: |
+          Application Alert:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${SLACK_DEV_WEBHOOK}'
+        channel: '#dev-alerts'
+        title: '💻 Application Alert - SmartAttend'
+        color: 'warning'
+
+  # Security team alerts
+  - name: 'security-team'
+    email_configs:
+      - to: '${SECURITY_TEAM_EMAIL}'
+        subject: '🔒 [SECURITY] SmartAttend Security Alert'
+        body: |
+          Security Alert Detected:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          Immediate Actions Required:
+          1. Review authentication logs
+          2. Check for suspicious IP addresses
+          3. Monitor user activity patterns
+          4. Consider implementing IP blocking if needed
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${SLACK_SECURITY_WEBHOOK}'
+        channel: '#security-alerts'
+        title: '🔒 Security Alert - SmartAttend'
+        color: 'danger'
+
+  # Operations team alerts
+  - name: 'ops-team'
+    email_configs:
+      - to: '${OPS_TEAM_EMAIL}'
+        subject: '[OPS ALERT] SmartAttend Infrastructure Issue'
+        body: |
+          Infrastructure Alert:
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${SLACK_OPS_WEBHOOK}'
+        channel: '#ops-alerts'
+        title: '⚙️ Infrastructure Alert - SmartAttend'
+        color: 'warning'
+
+# Templates for custom alert formatting
+templates:
+  - '/etc/alertmanager/templates/email.tmpl'
+  - '/etc/alertmanager/templates/slack.tmpl'

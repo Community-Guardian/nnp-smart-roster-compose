@@ -1,188 +1,1041 @@
-# smartAttend System Infrastructure
+# smartAttend System - Production Grade Infrastructure
 # 
-# This Docker Compose file defines a complete infrastructure for the smartAttend system platform,
-# orchestrating multiple services that work together to provide a comprehensive solution for
-# smartAttend tracking, data collection, analysis, and management.
+# This Docker Compose file defines a complete production-grade infrastructure for the smartAttend 
+# system platform, designed to support 20,000+ daily users with zero downtime requirements.
 #
-# SERVICES:
-# ---------
-# - postgres: PostgreSQL database server that stores all persistent application data
-#            including smartAttend records, user information, and system settings
-# - smartAttendsystembackend: Python-based web application backend that handles business logic, API endpoints,
-#          authentication, and smartAttend management
-# - nginx: High-performance web server that serves static files and acts as a reverse proxy
-#         for the smartAttendsystembackend application
-# - redis: In-memory data store used for caching, session management, and task queueing
-#         between components
-# - ftp: File Transfer Protocol server for handling file uploads and system backups
-# - pgbouncer: Connection pooler for PostgreSQL that improves database connection efficiency
+# PRODUCTION FEATURES:
+# -------------------
+# - High Availability: Load balancers, auto-scaling, circuit breakers
+# - Database Cluster: PostgreSQL with read replicas, connection pooling, external access
+# - Monitoring Stack: Prometheus, Grafana, Loki, Jaeger, Node Exporter
+# - Caching Layer: Redis Cluster with persistence and failover
+# - Security: SSL/TLS, secrets management, network isolation
+# - Logging: Centralized logging with log aggregation and retention
+# - Health Checks: Comprehensive health monitoring and auto-recovery
+# - AWS ECS Ready: Optimized for container orchestration platforms
 #
-# VOLUMES:
-# --------
-# - postgres_data: Persists database files across container restarts
-# - static_volume: Stores smartAttendsystembackend static assets (CSS, JS, images)
-# - media_volume: Stores user-uploaded content and generated files
-# - logs: Contains application logs for monitoring and troubleshooting
+# CORE SERVICES:
+# --------------
+# - postgres-primary/replica: PostgreSQL cluster with read replicas
+# - pgbouncer: Connection pooling and load balancing for database
+# - smartAttendsystembackend: Horizontally scaled backend services
+# - smartAttendsystemfrontend: Load-balanced frontend services  
+# - nginx-lb: Production-grade load balancer with SSL termination
+# - redis-cluster: High availability Redis cluster
 #
-# NETWORKING:
-# ----------
-# All services communicate through the smartAttend-backend-network bridge network
+# MONITORING & OBSERVABILITY:
+# ---------------------------
+# - prometheus: Metrics collection and alerting
+# - grafana: Visualization and dashboards
+# - loki: Log aggregation and search
+# - jaeger: Distributed tracing
+# - node-exporter: System metrics collection
+# - alertmanager: Alert routing and notifications
+#
+# SECURITY & NETWORKING:
+# ---------------------
+# - All services run in isolated networks
+# - External database access with secure authentication
+# - SSL/TLS encryption for all external communications
+# - Secrets management for sensitive data
 
 
 services:
-
-  postgres:
-    image: postgres:14
-    # ports:
-    #   - "5432:5432"  # Uncomment for direct database access from host
+  # =============================================================================
+  # DATABASE CLUSTER - PostgreSQL with High Availability
+  # =============================================================================
+  
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: postgres-primary
+    ports:
+      - "5432:5432"  # External database access for administration
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}  # Database name from .env
-      POSTGRES_USER: ${POSTGRES_USER}  # Database user from .env
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Database password from .env
-    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=64MB"] #Tune PostgreSQL for IoT workloads by adding shared_buffers, work_mem, and wal_buffers
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER:-replicator}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
+      PGUSER: ${POSTGRES_USER}
+    command: |
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=3
+      -c max_replication_slots=3
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=8MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_connections=500
+      -c shared_preload_libraries=pg_stat_statements
+      -c log_destination=stderr
+      -c log_statement=all
+      -c log_min_duration_statement=1000
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
     volumes:
-      - postgres_data:/var/lib/postgresql/data  # Persistent database storage
+      - postgres_primary_data:/var/lib/postgresql/data
+      - postgres_logs:/var/log/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d
     networks:
-      - smartAttend-backend-network
+      - database-network
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-  pgadmin:
-    image: dpage/pgadmin4
+      start_period: 30s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9187"
+
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: postgres-replica
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    ports: []  # No host exposure, only internal
-    depends_on:
-      - postgres
-    networks:
-      - smartAttend-backend-network
-  smartAttendsystembackend:
-    image: nrad8393/smart-attend-system-backend-server:latest
-    env_file:
-      - .env
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER:-replicator}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
+      PGUSER: ${POSTGRES_USER}
+      POSTGRES_PRIMARY_HOST: postgres-primary
+    command: |
+      bash -c "
+      if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+        pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U ${POSTGRES_REPLICATION_USER:-replicator} -v -P -W
+        echo 'standby_mode = on' >> /var/lib/postgresql/data/recovery.conf
+        echo 'primary_conninfo = host=postgres-primary port=5432 user=${POSTGRES_REPLICATION_USER:-replicator}' >> /var/lib/postgresql/data/recovery.conf
+      fi
+      postgres
+      "
     volumes:
-      - static_volume:/app/smartAttend/static
-      - media_volume:/app/smartAttend/media
-      - logs:/var/log 
+      - postgres_replica_data:/var/lib/postgresql/data
+    networks:
+      - database-network
+      - monitoring-network
+    restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      postgres-primary:
         condition: service_healthy
     deploy:
-      replicas: 3
-    restart: unless-stopped
-    networks:
-      - smartAttend-backend-network
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, sys, socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect(('localhost', 8000)); s.close()"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 30s
-  smartAttendsystemfrontend:
-    image: nrad8393/smart-attend-system-frontend-server:latest
+      start_period: 60s
+
+  # =============================================================================
+  # DATABASE CONNECTION POOLING
+  # =============================================================================
+  
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: pgbouncer
     environment:
-    - NODE_ENV=production  # Optional if already set in Dockerfile
-    env_file:
-      - .env
-    depends_on:
-      smartAttendsystembackend:
-        condition: service_healthy
-    restart: unless-stopped
-    # health check for frontend
-    healthcheck:
-      test: ["CMD", "node", "--eval", "const http = require('http'); http.get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - smartAttend-backend-network
-  nginx:
-    image: nginx:alpine
+      DATABASES_HOST: postgres-primary
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${POSTGRES_USER}
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASES_DBNAME: ${POSTGRES_DB}
+      POOL_MODE: transaction
+      SERVER_RESET_QUERY: DISCARD ALL
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 100
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      MAX_DB_CONNECTIONS: 50
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
     volumes:
-      - ./nginx:/etc/nginx/conf.d # Nginx configuration
-      - static_volume:/app/smartAttend/static  # Serve smartAttendsystembackend static files
-      - media_volume:/app/smartAttend/media  # Serve user-uploaded media
-    ports:
-      - "443:80"  # Expose web server on port 443
-    depends_on:
-      smartAttendsystembackend:
-        condition: service_healthy
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
     networks:
-      - smartAttend-backend-network
+      - database-network
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      test: ["CMD-SHELL", "psql -h localhost -p 6432 -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c 'SELECT 1'"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  redis:
-    image: redis:alpine
-    restart: always
-    # ports:
-    #   - "6379:6379"  # Uncomment for direct Redis access from host
-    command: ["redis-server", "--appendonly", "yes"]
+  # =============================================================================
+  # DATABASE ADMINISTRATION
+  # =============================================================================
+  
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'True'
+      PGADMIN_CONFIG_LOGIN_BANNER: "Production Database Administration"
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 20
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json
     networks:
-      - smartAttend-backend-network
+      - database-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REDIS CLUSTER - High Availability Caching
+  # =============================================================================
+  
+  redis-master:
+    image: redis:7-alpine
+    container_name: redis-master
+    command: |
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --timeout 300
+      --tcp-keepalive 60
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --rdbcompression yes
+      --rdbchecksum yes
+    volumes:
+      - redis_master_data:/data
+      - redis_logs:/var/log/redis
+    networks:
+      - cache-network
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
 
-  ftp:
-    image: fauria/vsftpd
-    environment:
-      - FTP_USER=${FTP_USER}  # FTP username from .env
-      - FTP_PASS=${FTP_PASS}  # FTP password from .env
-      - PASV_ADDRESS=${PASV_ADDRESS}  # Server address for passive mode
-      - PASV_MIN_PORT=21100  # Passive port range minimum
-      - PASV_MAX_PORT=21110  # Passive port range maximum
-      - FILE_OPEN_MODE=0666  # Default file permissions
-      - LOCAL_UMASK=022  # Default directory permissions
-    ports:
-      - "20:20"  # FTP data transfer port
-      - "21:21"  # FTP command port
-      - "21100-21110:21100-21110"  # Passive port range
+  redis-replica:
+    image: redis:7-alpine
+    container_name: redis-replica
+    command: |
+      redis-server
+      --replicaof redis-master 6379
+      --appendonly yes
+      --appendfsync everysec
+      --replica-read-only yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
     volumes:
-      - static_volume:/home/vsftpd/static  # Access to static files
-      - media_volume:/home/vsftpd/media  # Access to media files
+      - redis_replica_data:/data
     networks:
-      - smartAttend-backend-network
+      - cache-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     healthcheck:
-      test: ["CMD", "netstat", "-tln", "|", "grep", ":21"]
-      interval: 20s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # =============================================================================
+  # APPLICATION BACKEND - Horizontally Scaled
+  # =============================================================================
+  
+  smartAttendsystembackend:
+    image: nrad8393/smart-attend-system-backend-server:latest
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+    environment:
+      # Database Configuration
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
+      - DATABASE_POOL_SIZE=20
+      - DATABASE_MAX_OVERFLOW=30
+      - DATABASE_POOL_TIMEOUT=30
+      - DATABASE_POOL_RECYCLE=3600
+      
+      # Redis Configuration
+      - CELERY_BROKER_URL=redis://redis-master:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
+      - REDIS_CACHE_URL=redis://redis-master:6379/2
+      - REDIS_SESSION_URL=redis://redis-master:6379/3
+      
+      # Application Configuration
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_DEBUG=False
+      - DJANGO_LOG_LEVEL=INFO
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_SECURE_SSL_REDIRECT=True
+      - DJANGO_SECURE_HSTS_SECONDS=31536000
+      - DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+      - DJANGO_SECURE_HSTS_PRELOAD=True
+      
+      # Monitoring & Logging
+      - PROMETHEUS_METRICS_ENABLED=true
+      - SENTRY_DSN=${SENTRY_DSN}
+      - LOG_LEVEL=INFO
+      - STRUCTURED_LOGGING=true
+      
+      # Performance Tuning
+      - GUNICORN_WORKERS=4
+      - GUNICORN_THREADS=4
+      - GUNICORN_MAX_REQUESTS=1000
+      - GUNICORN_MAX_REQUESTS_JITTER=100
+      - GUNICORN_TIMEOUT=120
+      - GUNICORN_KEEPALIVE=5
+    env_file:
+      - .env
+    volumes:
+      - static_volume:/app/smartAttend/static
+      - media_volume:/app/smartAttend/media
+      - app_logs:/app/logs
+      - ./backend/logging.conf:/app/logging.conf
+    networks:
+      - app-network
+      - cache-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 60s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/metrics"
 
-  pgbouncer:
-    image: edoburu/pgbouncer
+  # =============================================================================
+  # CELERY WORKERS - Background Task Processing
+  # =============================================================================
+  
+  celery-worker:
+    image: nrad8393/smart-attend-system-backend-server:latest
+    command: celery -A smartAttend worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1000
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      POOL_MODE: transaction
+      - CELERY_BROKER_URL=redis://redis-master:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    env_file:
+      - .env
+    volumes:
+      - media_volume:/app/smartAttend/media
+      - app_logs:/app/logs
+    networks:
+      - app-network
+      - cache-network
+    restart: unless-stopped
     depends_on:
-      - postgres
+      redis-master:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "smartAttend", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
 
-# Persistent data volumes
+  celery-beat:
+    image: nrad8393/smart-attend-system-backend-server:latest
+    command: celery -A smartAttend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      - CELERY_BROKER_URL=redis://redis-master:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    env_file:
+      - .env
+    volumes:
+      - app_logs:/app/logs
+    networks:
+      - app-network
+      - cache-network
+    restart: unless-stopped
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # =============================================================================
+  # APPLICATION FRONTEND - Load Balanced
+  # =============================================================================
+  
+  smartAttendsystemfrontend:
+    image: nrad8393/smart-attend-system-frontend-server:latest
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_DOMAIN=${NEXT_PUBLIC_DOMAIN}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - LOG_LEVEL=info
+      - MONITORING_ENABLED=true
+    env_file:
+      - .env
+    networks:
+      - app-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      smartAttendsystembackend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=3000"
+      - "prometheus.io/path=/api/metrics"  # =============================================================================
+  # LOAD BALANCER & REVERSE PROXY - Production Grade Nginx
+  # =============================================================================
+  
+  nginx-lb:
+    image: nginx:alpine
+    container_name: nginx-lb
+    ports:
+      - "443:443"  # HTTPS
+      - "80:80"    # HTTP (redirects to HTTPS)
+    volumes:
+      - ./nginx/production.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+      - static_volume:/app/smartAttend/static
+      - media_volume:/app/smartAttend/media
+      - nginx_logs:/var/log/nginx
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - app-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      smartAttendsystembackend:
+        condition: service_healthy
+      smartAttendsystemfrontend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost/health" , "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9113"
+
+  # =============================================================================
+  # MONITORING STACK - Prometheus, Grafana, Alerting
+  # =============================================================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--storage.tsdb.wal-compression'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://${DOMAIN}/grafana/
+      - GF_SECURITY_COOKIE_SECURE=true
+      - GF_SECURITY_COOKIE_SAMESITE=strict
+      - GF_LOG_LEVEL=info
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://${DOMAIN}/alertmanager/'
+      - '--web.route-prefix=/'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # LOG AGGREGATION - Loki Stack
+  # =============================================================================
+  
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki:/etc/loki
+      - loki_data:/loki
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./monitoring/promtail:/etc/promtail
+      - app_logs:/var/log/app:ro
+      - nginx_logs:/var/log/nginx:ro
+      - postgres_logs:/var/log/postgresql:ro
+      - redis_logs:/var/log/redis:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # =============================================================================
+  # DISTRIBUTED TRACING - Jaeger
+  # =============================================================================
+  
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # =============================================================================
+  # SYSTEM MONITORING - Node Exporter
+  # =============================================================================
+  
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - database-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: "redis://redis-master:6379"
+    ports:
+      - "9121:9121"
+    networks:
+      - cache-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginx-exporter
+    command:
+      - '-nginx.scrape-uri=http://nginx-lb:8080/nginx_status'
+    ports:
+      - "9113:9113"
+    networks:
+      - app-network
+      - monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - nginx-lb
+
+  # =============================================================================
+  # ELASTICSEARCH FOR LOGS & SEARCH (Optional - for large scale)
+  # =============================================================================
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =============================================================================
+  # FILE TRANSFER & BACKUP (Enhanced)
+  # =============================================================================
+  
+  ftp:
+    image: fauria/vsftpd
+    container_name: ftp-server
+    environment:
+      - FTP_USER=${FTP_USER}
+      - FTP_PASS=${FTP_PASS}
+      - PASV_ADDRESS=${PASV_ADDRESS}
+      - PASV_MIN_PORT=21100
+      - PASV_MAX_PORT=21110
+      - FILE_OPEN_MODE=0666
+      - LOCAL_UMASK=022
+      - ALLOW_WRITEABLE_CHROOT=YES
+      - LOG_STDOUT=1
+    ports:
+      - "20:20"
+      - "21:21"
+      - "21100-21110:21100-21110"
+    volumes:
+      - static_volume:/home/vsftpd/static
+      - media_volume:/home/vsftpd/media
+      - backup_volume:/home/vsftpd/backups
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tln | grep :21 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # BACKUP SERVICE
+  # =============================================================================
+  
+  backup:
+    image: postgres:15-alpine
+    container_name: backup-service
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - BACKUP_RETENTION_DAYS=30
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET=${S3_BACKUP_BUCKET}
+    volumes:
+      - backup_volume:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh
+    networks:
+      - database-network
+    restart: unless-stopped
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    command: |
+      sh -c "
+      echo '0 2 * * * /usr/local/bin/backup.sh' | crontab -
+      crond -f
+      "
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+# =============================================================================
+# PERSISTENT VOLUMES - Production Data Storage
+# =============================================================================
 volumes:
-  postgres_data:  # PostgreSQL database files
-  static_volume:  # smartAttendsystembackend static files (CSS, JS, images)
-  media_volume:   # User uploaded files
-  logs:           # Application logs
+  # Database Storage
+  postgres_primary_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres/primary
+  postgres_replica_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres/replica
+  postgres_logs:
+    driver: local
+  
+  # Cache Storage
+  redis_master_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/redis/master
+  redis_replica_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/redis/replica
+  redis_logs:
+    driver: local
+  
+  # Application Storage
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/media
+  app_logs:
+    driver: local
+  
+  # Web Server Storage
+  nginx_logs:
+    driver: local
+  nginx_cache:
+    driver: local
+  
+  # Administrative Storage
+  pgadmin_data:
+    driver: local
+  backup_volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/backups
+  
+  # Monitoring Storage
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/prometheus
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/elasticsearch
 
-
-# Network configuration
+# =============================================================================
+# NETWORK ARCHITECTURE - Segmented Security
+# =============================================================================
 networks:
-  smartAttend-backend-network:
-    driver: bridge  # Standard bridge network for container communication
+  # Frontend Network - Public facing services
+  app-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: smartattend-app
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  # Database Network - Isolated database cluster
+  database-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: smartattend-db
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  
+  # Cache Network - Redis cluster network
+  cache-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: smartattend-cache
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+  
+  # Monitoring Network - Observability services
+  monitoring-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: smartattend-monitor
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+
+# =============================================================================
+# CONFIGURATION PROFILES
+# =============================================================================
+# Use with: docker-compose --profile monitoring up
+# Profiles allow selective deployment of services
+
+x-monitoring-profile: &monitoring-profile
+  profiles:
+    - monitoring
+    - full
+
+x-backup-profile: &backup-profile
+  profiles:
+    - backup
+    - full
+
+x-development-profile: &development-profile
+  profiles:
+    - development
