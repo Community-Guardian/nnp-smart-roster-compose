@@ -213,7 +213,7 @@ services:
         cp /tmp/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
         cp /tmp/userlist.txt /etc/pgbouncer/userlist.txt
         
-        # Set proper permissions (run as root to avoid permission issues)
+        # Set proper permissions
         chmod 644 /etc/pgbouncer/*
         
         # Start pgbouncer
