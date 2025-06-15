@@ -899,36 +899,18 @@ services:
 # =============================================================================
 # PERSISTENT VOLUMES - Production Data Storage
 # =============================================================================
-volumes:
-  # Database Storage
+volumes:  # Database Storage
   postgres_primary_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/postgres/primary
   postgres_replica_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/postgres/replica
   postgres_logs:
     driver: local
-  
-  # Cache Storage
+    # Cache Storage
   redis_master_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/redis/master
   redis_replica_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/redis/replica
   redis_logs:
     driver: local
   
@@ -937,10 +919,6 @@ volumes:
     driver: local
   media_volume:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/media
   app_logs:
     driver: local
   
