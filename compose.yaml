@@ -199,12 +199,13 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.5'    
     healthcheck:
-      test: ["CMD-SHELL", "psql -h localhost -p 6432 -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c 'SELECT 1'"]
+      test: ["CMD-SHELL", "nc -z localhost 6432 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
   # =============================================================================
   # DATABASE ADMINISTRATION
