@@ -206,3 +206,61 @@ curl -f http://localhost:3000/api/health
 docker compose logs --tail=50 backend
 docker compose logs --tail=50 frontend
 ```
+
+## React 19 Dependency Conflict Fix ❌➡️✅
+
+**Issue**: Docker build fails with `ERESOLVE could not resolve` error for React 19 compatibility.
+
+**Error Message**: 
+```
+peer react@"^16.8 || ^17.0 || ^18.0" from vaul@0.9.9
+Could not resolve dependency conflict with react@19.1.0
+```
+
+### Quick Fix (Apply immediately):
+
+1. **Navigate to frontend directory**:
+   ```bash
+   cd ~/attendance/nnp-smart-roster-frontend/smart-attendance
+   ```
+
+2. **Clean and reinstall dependencies**:
+   ```bash
+   # Remove existing dependencies
+   rm -rf node_modules package-lock.json
+   
+   # Install with legacy peer deps to resolve React 19 conflicts
+   npm install --legacy-peer-deps
+   
+   # Create new package-lock.json
+   npm audit fix --legacy-peer-deps
+   ```
+
+3. **Update vaul package** (in package.json):
+   ```json
+   "vaul": "^1.0.0"
+   ```
+
+4. **Test Docker build**:
+   ```bash
+   docker build -t smartattend-frontend:test .
+   ```
+
+### Alternative Fix Scripts:
+
+**Linux/WSL**:
+```bash
+cd ~/attendance/nnp-smart-roster-frontend/smart-attendance
+./scripts/fix-dependencies.sh
+```
+
+**Windows PowerShell**:
+```powershell
+cd c:\Users\karan\Documents\GitHub\nnp-smart-roster-frontend\smart-attendance
+.\scripts\fix-dependencies.ps1
+```
+
+### Root Cause:
+- React 19 is not yet supported by some packages like `vaul@0.9.x`
+- The Dockerfile now includes `--legacy-peer-deps` flag to handle this
+- Updated vaul to v1.0.0 which has better React 19 support
