@@ -985,22 +985,18 @@ networks:
   # Frontend Network - Public facing services
   app-network:
     driver: bridge
-    name: smartattend-app
   
   # Database Network - Isolated database cluster
   database-network:
     driver: bridge
-    name: smartattend-db
   
   # Cache Network - Redis cluster network
   cache-network:
     driver: bridge
-    name: smartattend-cache
   
   # Monitoring Network - Observability services
   monitoring-network:
     driver: bridge
-    name: smartattend-monitor
 
 # =============================================================================
 # CONFIGURATION PROFILES
