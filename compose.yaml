@@ -188,9 +188,20 @@ services:
     container_name: pgbouncer
     ports:
       - "6432:6432"  # PgBouncer port for application connections
-    volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    environment:
+      DATABASES_HOST: postgres-primary
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${POSTGRES_USER:-postgres}
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-user@12345}
+      DATABASES_DBNAME: ${POSTGRES_DB:-smartattend}
+      POOL_MODE: transaction
+      SERVER_RESET_QUERY: DISCARD ALL
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 100
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      MAX_DB_CONNECTIONS: 50
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
     networks:
       - database-network
       - app-network
