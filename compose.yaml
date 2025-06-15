@@ -389,7 +389,7 @@ services:
       - REDIS_SESSION_URL=redis://redis-master:6379/3
       
       # Application Configuration
-      - DJANGO_SETTINGS_MODULE=smartAttend.settings
+      - DJANGO_SETTINGS_MODULE=smartAttend.smartAttend.settings
       - DJANGO_DEBUG=False
       - DJANGO_LOG_LEVEL=INFO
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
@@ -462,7 +462,7 @@ services:
       - CELERY_BROKER_URL=redis://redis-master:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
-      - DJANGO_SETTINGS_MODULE=smartAttend.settings
+      - DJANGO_SETTINGS_MODULE=smartAttend.smartAttend.settings
     env_file:
       - .env
     volumes:
@@ -490,7 +490,7 @@ services:
       - CELERY_BROKER_URL=redis://redis-master:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
-      - DJANGO_SETTINGS_MODULE=smartAttend.settings
+      - DJANGO_SETTINGS_MODULE=smartAttend.smartAttend.settings
     env_file:
       - .env
     volumes:
