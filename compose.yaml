@@ -516,7 +516,7 @@ services:
     image: nginx:alpine
     container_name: nginx-lb
     ports:
-      - "443:80"  # HTTPS
+      - "443:8000"  # HTTPS
       # - "80:80"    # HTTP (redirects to HTTPS)
     volumes:
       - ./nginx/production.conf:/etc/nginx/nginx.conf
