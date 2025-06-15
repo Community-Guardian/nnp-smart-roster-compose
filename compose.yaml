@@ -118,9 +118,9 @@ services:
       PGUSER: ${POSTGRES_USER}
       POSTGRES_PRIMARY_HOST: postgres-primary
       PGPASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
-    command: |
+    entrypoint: |
       bash -c "
-      echo 'Starting PostgreSQL replica setup as postgres user...'
+      echo 'Starting PostgreSQL replica setup...'
       
       # Wait for primary to be ready
       until pg_isready -h postgres-primary -p 5432 -U ${POSTGRES_USER}; do
@@ -130,7 +130,7 @@ services:
       
       if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
         echo 'Initializing replica from primary...'
-        # Create base backup from primary
+        # Create base backup from primary as postgres user
         PGPASSWORD='${POSTGRES_REPLICATION_PASSWORD}' pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U ${POSTGRES_REPLICATION_USER:-replicator} -v -P -R
         echo 'Replica initialization completed'
       else
@@ -138,7 +138,7 @@ services:
       fi
       
       # Start PostgreSQL as replica
-      exec postgres
+      exec docker-entrypoint.sh postgres
       "
     volumes:
       - postgres_replica_data:/var/lib/postgresql/data
