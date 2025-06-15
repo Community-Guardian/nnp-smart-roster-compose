@@ -981,44 +981,28 @@ volumes:
       device: /data/elasticsearch
 
 # =============================================================================
-# NETWORK ARCHITECTURE - Segmented Security
+# NETWORK ARCHITECTURE - Simplified Configuration
 # =============================================================================
 networks:
   # Frontend Network - Public facing services
   app-network:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: smartattend-app
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    name: smartattend-app
   
   # Database Network - Isolated database cluster
   database-network:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: smartattend-db
-    ipam:
-      config:
-        - subnet: 172.21.0.0/16
+    name: smartattend-db
   
   # Cache Network - Redis cluster network
   cache-network:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: smartattend-cache
-    ipam:
-      config:
-        - subnet: 172.22.0.0/16
+    name: smartattend-cache
   
   # Monitoring Network - Observability services
   monitoring-network:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: smartattend-monitor
-    ipam:
-      config:
-        - subnet: 172.23.0.0/16
+    name: smartattend-monitor
 
 # =============================================================================
 # CONFIGURATION PROFILES
