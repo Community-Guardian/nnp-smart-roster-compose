@@ -389,7 +389,7 @@ services:
       - REDIS_SESSION_URL=redis://redis-master:6379/3
       
       # Application Configuration
-      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_SETTINGS_MODULE=smartAttend.settings
       - DJANGO_DEBUG=False
       - DJANGO_LOG_LEVEL=INFO
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
@@ -417,7 +417,7 @@ services:
     volumes:
       - static_volume:/app/smartAttend/static
       - media_volume:/app/smartAttend/media
-      - app_logs:/app/logs
+      - app_logs:/app/smartAttend/logs
       - ./backend/logging.conf:/app/logging.conf
     networks:
       - app-network
@@ -448,7 +448,7 @@ services:
   
   celery-worker:
     image: nrad8393/smart-attend-system-backend-server:latest
-    command: celery -A smartAttend worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1000
+    command: celery -A smartAttend.smartAttend worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1000
     deploy:
       replicas: 3
       resources:
@@ -462,7 +462,7 @@ services:
       - CELERY_BROKER_URL=redis://redis-master:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
-      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_SETTINGS_MODULE=smartAttend.settings
     env_file:
       - .env
     volumes:
@@ -485,12 +485,12 @@ services:
 
   celery-beat:
     image: nrad8393/smart-attend-system-backend-server:latest
-    command: celery -A smartAttend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A smartAttend.smartAttend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     environment:
       - CELERY_BROKER_URL=redis://redis-master:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-master:6379/1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB}
-      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DJANGO_SETTINGS_MODULE=smartAttend.settings
     env_file:
       - .env
     volumes:
