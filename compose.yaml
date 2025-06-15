@@ -415,8 +415,8 @@ services:
     depends_on:
       postgres-primary:
         condition: service_healthy
-      pgbouncer:
-        condition: service_healthy
+      # pgbouncer:
+      #   condition: service_healthy
       redis-master:
         condition: service_healthy
     healthcheck:
