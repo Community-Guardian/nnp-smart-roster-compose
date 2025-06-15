@@ -200,11 +200,11 @@ services:
       DEFAULT_POOL_SIZE: 100
       MIN_POOL_SIZE: 10
       RESERVE_POOL_SIZE: 10
-      MAX_DB_CONNECTIONS: 50
-      # Authentication
-      AUTH_TYPE: plain      # Performance tuning
+      MAX_DB_CONNECTIONS: 50      # Authentication
+      AUTH_TYPE: plain
+      # Performance tuning
       SERVER_RESET_QUERY: "DISCARD ALL"
-      SERVER_LIFETIME: 3600      
+      SERVER_LIFETIME: 3600
       SERVER_IDLE_TIMEOUT: 600
       CLIENT_IDLE_TIMEOUT: 600
     networks:
@@ -218,9 +218,9 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.5'    
     healthcheck:
-      test: ["CMD-SHELL", "timeout 10s bash -c '</dev/tcp/localhost/5432' || exit 1"]
+      test: ["CMD-SHELL", "timeout 10s sh -c '</dev/tcp/localhost/5432' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
