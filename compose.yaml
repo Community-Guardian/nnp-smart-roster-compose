@@ -949,24 +949,15 @@ volumes:
     driver: local
   nginx_cache:
     driver: local
-  
-  # Administrative Storage
+    # Administrative Storage
   pgadmin_data:
     driver: local
   backup_volume:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/backups
   
   # Monitoring Storage
   prometheus_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/prometheus
   grafana_data:
     driver: local
   alertmanager_data:
@@ -975,10 +966,6 @@ volumes:
     driver: local
   elasticsearch_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/elasticsearch
 
 # =============================================================================
 # NETWORK ARCHITECTURE - Simplified Configuration
