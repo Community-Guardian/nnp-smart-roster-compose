@@ -905,8 +905,7 @@ volumes:  # Database Storage
   postgres_replica_data:
     driver: local
   postgres_logs:
-    driver: local
-    # Cache Storage
+    driver: local  # Cache Storage
   redis_master_data:
     driver: local
   redis_replica_data:
