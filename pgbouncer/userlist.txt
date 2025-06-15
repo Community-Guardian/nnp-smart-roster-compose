@@ -1,14 +1,14 @@
 # =============================================================================
-# PGBOUNCER USER LIST
-# Format: "username" "password_hash"
+# PGBOUNCER USER LIST - PLAIN TEXT (for development/testing)
+# Format: "username" "password"
 # =============================================================================
 
-# Main application user
-"${POSTGRES_USER}" "md5$(echo -n "${POSTGRES_PASSWORD}${POSTGRES_USER}" | md5sum | cut -d' ' -f1)"
+# Main application user - using plain text for easier setup
+"postgres" "user@12345"
 
 # Administrative users
-"pgbouncer_admin" "md5$(echo -n "${PGBOUNCER_ADMIN_PASSWORD}pgbouncer_admin" | md5sum | cut -d' ' -f1)"
-"pgbouncer_stats" "md5$(echo -n "${PGBOUNCER_STATS_PASSWORD}pgbouncer_stats" | md5sum | cut -d' ' -f1)"
+"pgbouncer_admin" "pgbouncer_admin_123"
+"pgbouncer_stats" "pgbouncer_stats_456"
 
 # Replication user
-"${POSTGRES_REPLICATION_USER:-replicator}" "md5$(echo -n "${POSTGRES_REPLICATION_PASSWORD}${POSTGRES_REPLICATION_USER:-replicator}" | md5sum | cut -d' ' -f1)"
+"replicator" "user@12345"
