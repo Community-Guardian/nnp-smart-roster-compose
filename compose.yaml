@@ -94,7 +94,7 @@ services:
           cpus: '1.0'
         reservations:
           memory: 1G
-          cpus: '0.5'
+          cpus: '0.5'    
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -104,9 +104,11 @@ services:
     labels:
       - "prometheus.io/scrape=true"
       - "prometheus.io/port=9187"
+
   postgres-replica:
     image: postgres:15-alpine
     container_name: postgres-replica
+    user: postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -118,7 +120,7 @@ services:
       PGPASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
     command: |
       bash -c "
-      echo 'Starting PostgreSQL replica setup...'
+      echo 'Starting PostgreSQL replica setup as postgres user...'
       
       # Wait for primary to be ready
       until pg_isready -h postgres-primary -p 5432 -U ${POSTGRES_USER}; do
@@ -130,11 +132,6 @@ services:
         echo 'Initializing replica from primary...'
         # Create base backup from primary
         PGPASSWORD='${POSTGRES_REPLICATION_PASSWORD}' pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U ${POSTGRES_REPLICATION_USER:-replicator} -v -P -R
-        
-        # Set proper permissions
-        chown -R postgres:postgres /var/lib/postgresql/data
-        chmod 700 /var/lib/postgresql/data
-        
         echo 'Replica initialization completed'
       else
         echo 'Replica data directory already exists, starting server...'
@@ -165,14 +162,15 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 60s  
-  # =============================================================================
+      start_period: 60s    # =============================================================================
   # DATABASE CONNECTION POOLING
   # =============================================================================
   
   pgbouncer:
     image: pgbouncer/pgbouncer:latest
     container_name: pgbouncer
+    ports:
+      - "6432:6432"  # PgBouncer port for application connections
     environment:
       DATABASES_HOST: postgres-primary
       DATABASES_PORT: 5432
