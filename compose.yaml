@@ -147,14 +147,14 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 60s  
   # =============================================================================
   # DATABASE CONNECTION POOLING
   # =============================================================================
+  
   pgbouncer:
     image: pgbouncer/pgbouncer:latest
     container_name: pgbouncer
-    user: "999:999"  # Run as pgbouncer user
     environment:
       DATABASES_HOST: postgres-primary
       DATABASES_PORT: 5432
@@ -175,12 +175,14 @@ services:
       - ./pgbouncer/userlist.txt:/tmp/userlist.txt:ro
     entrypoint: |
       sh -c '
+        # Create directory if it does not exist
+        mkdir -p /etc/pgbouncer
+        
         # Copy config files to writable location
         cp /tmp/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
         cp /tmp/userlist.txt /etc/pgbouncer/userlist.txt
         
-        # Set proper permissions
-        chown -R pgbouncer:pgbouncer /etc/pgbouncer
+        # Set proper permissions (run as root to avoid permission issues)
         chmod 644 /etc/pgbouncer/*
         
         # Start pgbouncer
