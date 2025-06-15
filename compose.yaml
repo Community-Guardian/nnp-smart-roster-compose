@@ -148,14 +148,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
-
   # =============================================================================
   # DATABASE CONNECTION POOLING
   # =============================================================================
-  
   pgbouncer:
     image: pgbouncer/pgbouncer:latest
     container_name: pgbouncer
+    user: "999:999"  # Run as pgbouncer user
     environment:
       DATABASES_HOST: postgres-primary
       DATABASES_PORT: 5432
@@ -171,8 +170,22 @@ services:
       MAX_DB_CONNECTIONS: 50
       IGNORE_STARTUP_PARAMETERS: extra_float_digits
     volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+      - pgbouncer_config:/etc/pgbouncer
+      - ./pgbouncer/pgbouncer.ini:/tmp/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/tmp/userlist.txt:ro
+    entrypoint: |
+      sh -c '
+        # Copy config files to writable location
+        cp /tmp/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
+        cp /tmp/userlist.txt /etc/pgbouncer/userlist.txt
+        
+        # Set proper permissions
+        chown -R pgbouncer:pgbouncer /etc/pgbouncer
+        chmod 644 /etc/pgbouncer/*
+        
+        # Start pgbouncer
+        exec /opt/pgbouncer/entrypoint.sh "$$@"
+      '
     networks:
       - database-network
       - app-network
@@ -508,7 +521,8 @@ services:
     labels:
       - "prometheus.io/scrape=true"
       - "prometheus.io/port=3000"
-      - "prometheus.io/path=/api/metrics"  # =============================================================================
+      - "prometheus.io/path=/api/metrics" 
+  # =============================================================================
   # LOAD BALANCER & REVERSE PROXY - Production Grade Nginx
   # =============================================================================
   
@@ -516,7 +530,7 @@ services:
     image: nginx:alpine
     container_name: nginx-lb
     ports:
-      - "443:8000"  # HTTPS
+      - "443:80"  
       # - "80:80"    # HTTP (redirects to HTTPS)
     volumes:
       - ./nginx/production.conf:/etc/nginx/nginx.conf
@@ -916,6 +930,10 @@ volumes:  # Database Storage
   redis_replica_data:
     driver: local
   redis_logs:
+    driver: local
+  
+  # Connection Pooling Storage
+  pgbouncer_config:
     driver: local
   
   # Application Storage
