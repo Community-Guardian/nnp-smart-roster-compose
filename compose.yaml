@@ -177,7 +177,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 60s    # =============================================================================
+      start_period: 60s
+
+  # =============================================================================
   # DATABASE CONNECTION POOLING
   # =============================================================================
   
@@ -186,39 +188,9 @@ services:
     container_name: pgbouncer
     ports:
       - "6432:6432"  # PgBouncer port for application connections
-    environment:
-      DATABASES_HOST: postgres-primary
-      DATABASES_PORT: 5432
-      DATABASES_USER: ${POSTGRES_USER}
-      DATABASES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASES_DBNAME: ${POSTGRES_DB}
-      POOL_MODE: transaction
-      SERVER_RESET_QUERY: DISCARD ALL
-      MAX_CLIENT_CONN: 1000
-      DEFAULT_POOL_SIZE: 100
-      MIN_POOL_SIZE: 10
-      RESERVE_POOL_SIZE: 10
-      MAX_DB_CONNECTIONS: 50
-      IGNORE_STARTUP_PARAMETERS: extra_float_digits
     volumes:
-      - pgbouncer_config:/etc/pgbouncer
-      - ./pgbouncer/pgbouncer.ini:/tmp/pgbouncer.ini:ro
-      - ./pgbouncer/userlist.txt:/tmp/userlist.txt:ro
-    entrypoint: |
-      sh -c '
-        # Create directory if it does not exist
-        mkdir -p /etc/pgbouncer
-        
-        # Copy config files to writable location
-        cp /tmp/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
-        cp /tmp/userlist.txt /etc/pgbouncer/userlist.txt
-        
-        # Set proper permissions (run as root to avoid permission issues)
-        chmod 644 /etc/pgbouncer/*
-        
-        # Start pgbouncer
-        exec /opt/pgbouncer/entrypoint.sh "$$@"
-      '
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
     networks:
       - database-network
       - app-network
@@ -963,12 +935,7 @@ volumes:  # Database Storage
   redis_replica_data:
     driver: local
   redis_logs:
-    driver: local
-  
-  # Connection Pooling Storage
-  pgbouncer_config:
-    driver: local
-  
+    driver: local  
   # Application Storage
   static_volume:
     driver: local
