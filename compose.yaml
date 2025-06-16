@@ -517,15 +517,16 @@ services:
         max_attempts: 3
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:443/smartAttend
-      - NEXT_PUBLIC_DOMAIN=localhost:443
-      - NEXTAUTH_URL=http://localhost:443
+      - NEXT_PUBLIC_API_URL=https://calm-deadly-kit.ngrok-free.app//smartAttend
+      - NEXT_PUBLIC_DOMAIN=calm-deadly-kit.ngrok-free.app
+      - NEXTAUTH_URL=https://calm-deadly-kit.ngrok-free.app/
       - NEXTAUTH_SECRET=nextauth_secret_key_here_abcdefghijklmnopqrstuvwxyz
-      - DOMAIN=localhost:443
-      - SITE_DOMAIN=localhost:443
-      - NEXT_PUBLIC_APP_URL=http://localhost:443
-      - FRONTEND_URL=http://localhost:443
-      - LOG_LEVEL=info      - MONITORING_ENABLED=true
+      - DOMAIN=calm-deadly-kit.ngrok-free.app
+      - SITE_DOMAIN=calm-deadly-kit.ngrok-free.app
+      - NEXT_PUBLIC_APP_URL=https://calm-deadly-kit.ngrok-free.app/
+      - FRONTEND_URL=https://calm-deadly-kit.ngrok-free.app/
+      - LOG_LEVEL=info
+      - MONITORING_ENABLED=true
     networks:
       - app-network
       - monitoring-network
