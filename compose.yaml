@@ -554,7 +554,7 @@ services:
       - "33:80"  
       # - "80:80"    # HTTP (redirects to HTTPS)
     volumes:
-      - ./nginx/production.conf:/etc/nginx/nginx.conf
+      - ./nginx/default.conf:/etc/nginx/nginx.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./ssl:/etc/nginx/ssl
       - static_volume:/app/smartAttend/static
