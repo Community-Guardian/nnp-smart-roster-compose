@@ -552,7 +552,8 @@ services:
     ports:
       - "443:80"
       - "33:80"  
-      # - "80:80"    # HTTP (redirects to HTTPS)    volumes:
+      # - "80:80"    # HTTP (redirects to HTTPS)    
+    volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
       # - ./ssl:/etc/nginx/ssl
