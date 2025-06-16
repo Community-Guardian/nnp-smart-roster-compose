@@ -517,7 +517,7 @@ services:
         max_attempts: 3
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://calm-deadly-kit.ngrok-free.app//smartAttend
+      - NEXT_PUBLIC_API_URL=https://calm-deadly-kit.ngrok-free.app/smartAttend
       - NEXT_PUBLIC_DOMAIN=calm-deadly-kit.ngrok-free.app
       - NEXTAUTH_URL=https://calm-deadly-kit.ngrok-free.app/
       - NEXTAUTH_SECRET=nextauth_secret_key_here_abcdefghijklmnopqrstuvwxyz
