@@ -177,35 +177,34 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
-
   # =============================================================================
   # DATABASE CONNECTION POOLING
   # =============================================================================
   
   pgbouncer:
-    image: edoburu/pgbouncer:latest
+    image: pgbouncer/pgbouncer:latest
     container_name: pgbouncer
     ports:
-      - "6432:5432"  # PgBouncer port for application connections
+      - "6432:6432"  # PgBouncer port for application connections
     environment:
-      # Database connection configuration
-      DB_HOST: postgres-primary
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-user@12345}
-      DB_NAME: ${POSTGRES_DB:-smartattend}
-      # Pool configuration
+      DATABASES_HOST: postgres-primary
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${POSTGRES_USER:-postgres}
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-user@12345}
+      DATABASES_DBNAME: ${POSTGRES_DB:-smartattend}
       POOL_MODE: transaction
+      SERVER_RESET_QUERY: DISCARD ALL
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 100
       MIN_POOL_SIZE: 10
       RESERVE_POOL_SIZE: 10
-      MAX_DB_CONNECTIONS: 50      # Authentication
-      AUTH_TYPE: plain
-      # Performance tuning      SERVER_RESET_QUERY: "DISCARD ALL"
-      SERVER_LIFETIME: 3600
-      SERVER_IDLE_TIMEOUT: 600
-      CLIENT_IDLE_TIMEOUT: 600
+      MAX_DB_CONNECTIONS: 50
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    tmpfs:
+      - /tmp/pgbouncer:noexec,nosuid,size=10m
     networks:
       - database-network
       - app-network
@@ -219,7 +218,7 @@ services:
           memory: 512M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "5432"]
+      test: ["CMD-SHELL", "nc -z localhost 6432 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
