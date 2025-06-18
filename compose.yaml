@@ -665,6 +665,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
   alertmanager:
     image: prom/alertmanager:latest
     container_name: alertmanager
@@ -673,6 +674,7 @@ services:
       - '--storage.path=/alertmanager'
       - '--web.external-url=https://${DOMAIN}/alertmanager/'
       - '--web.route-prefix=/'
+      - '--config.expand-env=true'
     ports:
       - "9093:9093"
     environment:
