@@ -68,6 +68,7 @@ receivers:
   - name: 'default'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '[ALERT] SmartAttend System Alert'
         body: |
           {{ range .Alerts }}
@@ -82,6 +83,7 @@ receivers:
   - name: 'critical-alerts'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '🚨 [CRITICAL] SmartAttend System Alert'
         html: |
           <h2>🚨 Critical Alert - SmartAttend System</h2>
@@ -99,6 +101,7 @@ receivers:
   - name: 'database-team'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '[DB ALERT] SmartAttend Database Issue'
         body: |
           Database Alert Detected:
@@ -120,6 +123,7 @@ receivers:
   - name: 'dev-team'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '[APP ALERT] SmartAttend Application Issue'
         body: |
           Application Alert:
@@ -136,6 +140,7 @@ receivers:
   - name: 'security-team'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '🔒 [SECURITY] SmartAttend Security Alert'
         body: |
           Security Alert Detected:
@@ -157,6 +162,7 @@ receivers:
   - name: 'ops-team'
     email_configs:
       - to: 'admin@smartattend.local'
+        from: 'alertmanager@smartattend.local'
         subject: '[OPS ALERT] SmartAttend Infrastructure Issue'
         body: |
           Infrastructure Alert:
