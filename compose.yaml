@@ -665,13 +665,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # =============================================================================
+  # ALERTMANAGER - Alert Routing and Notifications
+  # =============================================================================
+  
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
     command:
-      - '--config.file=/etc/alertmanager/config.yml'
+      - '--config.file=/etc/alertmanager/config-simple.yml'
       - '--storage.path=/alertmanager'
-      - '--web.external-url=https://${DOMAIN}/alertmanager/'
+      - '--web.external-url=http://localhost:9093'
       - '--web.route-prefix=/'
       - '--cluster.listen-address=0.0.0.0:9094'
       - '--web.listen-address=0.0.0.0:9093'

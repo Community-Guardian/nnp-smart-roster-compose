@@ -1,0 +1,17 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@smartattend.local'
+  smtp_require_tls: false
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+
+receivers:
+- name: 'web.hook'
+  webhook_configs:
+  - url: 'http://webhook-receiver:5001/webhook/default'
+    send_resolved: true
