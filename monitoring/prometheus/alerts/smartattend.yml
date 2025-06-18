@@ -303,3 +303,27 @@ groups:
         annotations:
           summary: "High network latency detected"
           description: "Network latency to {{ $labels.instance }} is {{ $value }}s"
+
+      # Enhanced service monitoring
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.smartattend.com/runbooks/service-down"
+          dashboard_url: "http://grafana:3000/d/services"
+
+      # Container health monitoring
+      - alert: ContainerRestarting
+        expr: increase(container_restart_count[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          service: application
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last hour."
