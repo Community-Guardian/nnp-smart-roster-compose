@@ -11,7 +11,5 @@ route:
 
 receivers:
   - name: 'web.hook'
-    email_configs:
-      - to: 'admin@smartattend.local'
-        subject: 'SmartAttend Alert'
-        body: 'Alert notification from SmartAttend system'
+    webhook_configs:
+      - url: 'http://localhost:5001/'
