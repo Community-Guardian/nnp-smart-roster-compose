@@ -1,0 +1,17 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@smartattend.local'
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'web.hook'
+
+receivers:
+  - name: 'web.hook'
+    email_configs:
+      - to: 'admin@smartattend.local'
+        subject: 'SmartAttend Alert'
+        body: 'Alert notification from SmartAttend system'
