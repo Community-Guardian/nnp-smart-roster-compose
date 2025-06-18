@@ -1,37 +1,95 @@
 global:
-  smtp_smarthost: 'localhost:587'
-  smtp_from: 'alertmanager@smartattend.local'
-  smtp_require_tls: false
+  # Global SMTP configuration
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'smartattend-alerts@company.com'
+  smtp_require_tls: true
+  smtp_hello: 'smartattend.local'
+  
+  # Webhook timeout
+  http_config:
+    timeout: 10s
+  
+  # Resolve timeout
+  resolve_timeout: 5m
 
-# Enhanced routing configuration
+# Templates for custom notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Enhanced routing configuration with business hours and escalation
 route:
-  group_by: ['alertname', 'cluster', 'service']
+  group_by: ['alertname', 'cluster', 'service', 'severity']
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
   receiver: 'default'
   
   routes:
-    # Critical alerts - immediate notification
+    # Critical alerts - immediate notification with escalation
     - match:
         severity: critical
       receiver: 'critical-alerts'
       group_wait: 0s
       repeat_interval: 15m
+      routes:
+        # Critical database issues
+        - match:
+            service: database
+          receiver: 'critical-database'
+          group_wait: 0s
+          repeat_interval: 10m
+        # Critical security issues
+        - match:
+            service: security
+          receiver: 'critical-security'
+          group_wait: 0s
+          repeat_interval: 5m
       
-    # Database alerts
+    # Database alerts with specialized routing
     - match:
         service: database
       receiver: 'database-team'
       group_wait: 30s
       repeat_interval: 30m
+      routes:
+        # PostgreSQL specific alerts
+        - match_re:
+            alertname: '(PostgreSQL.*|DB.*)'
+          receiver: 'postgresql-team'
+          group_wait: 15s
+          repeat_interval: 20m
+        # Connection pool alerts
+        - match_re:
+            alertname: '(PgBouncer.*|ConnectionPool.*)'
+          receiver: 'database-pool-team'
+          group_wait: 10s
+          repeat_interval: 15m
       
-    # Application alerts
+    # Application alerts with service-specific routing
     - match_re:
         service: (app|application|backend|frontend)
       receiver: 'dev-team'
       group_wait: 1m
       repeat_interval: 1h
+      routes:
+        # High error rate alerts
+        - match_re:
+            alertname: '(HighErrorRate|ErrorRate.*)'
+          receiver: 'dev-team-errors'
+          group_wait: 30s
+          repeat_interval: 30m
+        # Performance alerts
+        - match_re:
+            alertname: '(SlowResponse|HighLatency|Performance.*)'
+          receiver: 'dev-team-performance'
+          group_wait: 2m
+          repeat_interval: 45m
+        # Service down alerts
+        - match_re:
+            alertname: '(ServiceDown|.*Down)'
+          receiver: 'dev-team-outages'
+          group_wait: 0s
+          repeat_interval: 10m
       
     # Infrastructure alerts
     - match_re:
@@ -39,153 +97,714 @@ route:
       receiver: 'ops-team'
       group_wait: 30s
       repeat_interval: 30m
+      routes:
+        # Resource exhaustion alerts
+        - match_re:
+            alertname: '(HighCPU|HighMemory|DiskSpaceHigh|.*Exhausted)'
+          receiver: 'ops-team-resources'
+          group_wait: 15s
+          repeat_interval: 20m
+        # Network alerts
+        - match_re:
+            alertname: '(Network.*|Connectivity.*)'
+          receiver: 'ops-team-network'
+          group_wait: 10s
+          repeat_interval: 15m
       
-    # Security alerts
+    # Security alerts with immediate escalation
     - match:
         service: security
       receiver: 'security-team'
       group_wait: 0s
       repeat_interval: 15m
+      routes:
+        # Authentication failures
+        - match_re:
+            alertname: '(AuthFailure|LoginFailure|.*Brute.*)'
+          receiver: 'security-auth-team'
+          group_wait: 0s
+          repeat_interval: 5m
+        # Suspicious activity
+        - match_re:
+            alertname: '(Suspicious.*|Anomaly.*|Intrusion.*)'
+          receiver: 'security-soc-team'
+          group_wait: 0s
+          repeat_interval: 2m
+      
+    # Business alerts for application metrics
+    - match:
+        service: business
+      receiver: 'business-team'
+      group_wait: 2m
+      repeat_interval: 2h
+      routes:
+        # User activity alerts
+        - match_re:
+            alertname: '(LowUserActivity|UserDrop.*)'
+          receiver: 'business-user-team'
+          group_wait: 5m
+          repeat_interval: 4h
+        # Revenue/conversion alerts
+        - match_re:
+            alertname: '(Revenue.*|Conversion.*)'
+          receiver: 'business-revenue-team'
+          group_wait: 1m
+          repeat_interval: 1h
+      
+    # Maintenance window alerts (suppressed during maintenance)
+    - match:
+        maintenance: 'true'
+      receiver: 'maintenance-team'
+      group_wait: 10m
+      repeat_interval: 6h
+      
+    # Development environment alerts (lower priority)
+    - match:
+        environment: development
+      receiver: 'dev-environment'
+      group_wait: 5m
+      repeat_interval: 4h
+      
+    # Staging environment alerts
+    - match:
+        environment: staging
+      receiver: 'staging-team'
+      group_wait: 2m
+      repeat_interval: 2h
+      
+    # Warning-level alerts with longer wait times
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 5m
+      repeat_interval: 2h
 
-# Inhibit rules to prevent alert spam
+# Enhanced inhibit rules to prevent alert spam and cascading notifications
 inhibit_rules:
   # Inhibit any warning-level notifications if the same alert is already critical
   - source_match:
       severity: 'critical'
     target_match:
       severity: 'warning'
-    equal: ['alertname', 'dev', 'instance']
+    equal: ['alertname', 'instance']
     
-  # Inhibit application alerts if the entire node is down
+  # Inhibit application alerts if the entire node/instance is down
   - source_match:
       alertname: 'InstanceDown'
     target_match_re:
-      alertname: '(HighCPU|HighMemory|DiskSpaceHigh|.*Down)'
+      alertname: '(HighCPU|HighMemory|DiskSpaceHigh|.*ServiceDown)'
     equal: ['instance']
+    
+  # Inhibit individual service alerts if the entire host is unreachable
+  - source_match:
+      alertname: 'HostUnreachable'
+    target_match_re:
+      alertname: '(.*Down|.*Unavailable|.*Failed)'
+    equal: ['instance']
+    
+  # Inhibit database connection alerts if database is completely down
+  - source_match_re:
+      alertname: '(PostgreSQLDown|DatabaseDown)'
+    target_match_re:
+      alertname: '(DatabaseConnections.*|SlowQueries|DatabaseLag)'
+    equal: ['instance']
+    
+  # Inhibit individual container alerts if the entire Docker daemon is down
+  - source_match:
+      alertname: 'DockerDaemonDown'
+    target_match_re:
+      alertname: '(Container.*|Docker.*)'
+    equal: ['instance']
+    
+  # Inhibit network-related alerts if there's a general network outage
+  - source_match_re:
+      alertname: '(NetworkOutage|NetworkDown)'
+    target_match_re:
+      alertname: '(.*Timeout|.*Unreachable|ConnectionFailed)'
+    equal: ['instance']
+    
+  # Inhibit resource alerts if the service is intentionally stopped
+  - source_match:
+      alertname: 'ServiceStopped'
+    target_match_re:
+      alertname: '(High.*|Low.*|.*Exhausted)'
+    equal: ['instance', 'service']
+    
+  # Inhibit maintenance-related alerts during scheduled maintenance
+  - source_match:
+      alertname: 'MaintenanceMode'
+    target_match_re:
+      alertname: '(.*Down|.*Unavailable|.*Failed)'
+    equal: ['instance']
+    
+  # Inhibit disk space alerts if there's a critical disk failure
+  - source_match:
+      alertname: 'DiskFailure'
+    target_match_re:
+      alertname: '(DiskSpaceHigh|DiskSpaceLow)'
+    equal: ['instance', 'device']
+    
+  # Inhibit application performance alerts if there's a critical infrastructure issue
+  - source_match:
+      severity: 'critical'
+      service: 'infrastructure'
+    target_match:
+      severity: 'warning'
+      service: 'application'
+    equal: ['instance']
+    
+  # Inhibit load balancer alerts if backend services are down
+  - source_match_re:
+      alertname: '(BackendDown|ServiceUnavailable)'
+    target_match_re:
+      alertname: '(LoadBalancer.*|Proxy.*)'
+    equal: ['backend', 'service']
+    
+  # Inhibit queue depth alerts if the processing service is down
+  - source_match_re:
+      alertname: '(ProcessorDown|WorkerDown)'
+    target_match_re:
+      alertname: '(QueueDepthHigh|QueueBacklog)'
+    equal: ['service']
+    
+  # Inhibit SSL certificate alerts if the service is down
+  - source_match_re:
+      alertname: '(.*ServiceDown|.*Unavailable)'
+    target_match_re:
+      alertname: '(SSLCert.*|Certificate.*)'
+    equal: ['instance']
+    
+  # Inhibit backup alerts if storage is unavailable
+  - source_match_re:
+      alertname: '(StorageUnavailable|StorageDown)'
+    target_match_re:
+      alertname: '(BackupFailed|BackupMissing)'
+    equal: ['instance']
+    
+  # Inhibit specific database alerts if there's a cluster-wide issue
+  - source_match:
+      alertname: 'PostgreSQLClusterDown'
+    target_match_re:
+      alertname: '(PostgreSQL.*|Database.*)'
+    equal: ['cluster']
 
 receivers:
-  # Default receiver
+  # Default receiver with basic webhook
   - name: 'default'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/default'
+      - url: 'http://webhook-receiver:5001/webhook/default'
         send_resolved: true
         http_config:
           basic_auth:
             username: 'alertmanager'
             password: 'webhook-secret'
-        title: 'SmartAttend Alert'
-        text: |
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Severity: {{ .Labels.severity }}
-          Service: {{ .Labels.service }}
-          Instance: {{ .Labels.instance }}
-          Time: {{ .StartsAt }}
-          {{ end }}
+        title: '{{ template "alert.summary" . }}'
+        text: '{{ template "webhook.default" . }}'
 
-  # Critical alerts - multiple notification methods
+  # Critical alerts - multiple notification methods with escalation
   - name: 'critical-alerts'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/critical'
+      - url: 'http://webhook-receiver:5001/webhook/critical'
         send_resolved: true
-        title: '🚨 CRITICAL Alert - SmartAttend'
-        text: |
-          {{ range .Alerts }}
-          🚨 CRITICAL ALERT 🚨
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Service: {{ .Labels.service }}
-          Instance: {{ .Labels.instance }}
-          Runbook: {{ .Annotations.runbook_url }}
-          Dashboard: {{ .Annotations.dashboard_url }}
-          Time: {{ .StartsAt }}
-          {{ end }}
-      # Slack webhook for critical alerts (when configured)
-      - url: 'http://localhost:5001/webhook/slack-critical'
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+      # PagerDuty for critical alerts
+      - url: 'http://webhook-receiver:5001/webhook/pagerduty'
         send_resolved: true
+        title: '🚨 CRITICAL: {{ template "alert.summary" . }}'
+    # Email for critical alerts
+    email_configs:
+      - to: 'critical-alerts@smartattend.com'
+        from: 'smartattend-alerts@company.com'
+        subject: '{{ template "email.subject" . }}'
+        html: '{{ template "email.html" . }}'
+        headers:
+          X-Priority: '1'
+          X-Alert-Type: 'critical'
 
-  # Database team alerts
-  - name: 'database-team'
+  # Critical database alerts with specialized handling
+  - name: 'critical-database'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/database'
+      - url: 'http://webhook-receiver:5001/webhook/critical-database'
         send_resolved: true
-        title: '🗄️ Database Alert - SmartAttend'
+        title: '🗄️🚨 CRITICAL DATABASE ALERT'
         text: |
-          {{ range .Alerts }}
-          Database Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Database: {{ .Labels.datname }}
-          Instance: {{ .Labels.instance }}
-          Query: {{ .Annotations.query }}
+          🗄️🚨 CRITICAL DATABASE ISSUE DETECTED
           
-          Troubleshooting:
-          1. Check database logs: docker logs postgres-primary
-          2. Check connection pool: docker logs pgbouncer
-          3. Monitor resource usage in Grafana
-          4. Check database metrics at: http://grafana:3000/d/postgres
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Database:** {{ .Labels.datname }}
+          **Instance:** {{ .Labels.instance }}
+          **Started:** {{ .StartsAt }}
+          
+          **IMMEDIATE ACTIONS REQUIRED:**
+          1. Check database status: `docker exec postgres-primary pg_isready`
+          2. Review logs: `docker logs postgres-primary --tail 50`
+          3. Check connection pool: `docker logs pgbouncer --tail 20`
+          4. Monitor active connections: `SELECT count(*) FROM pg_stat_activity;`
+          5. Check disk space: `df -h /var/lib/postgresql/data`
+          
+          **Escalation:** If not resolved in 10 minutes, contact database admin: +1-555-0123
+          {{ end }}
+    email_configs:
+      - to: 'database-team@smartattend.com, database-admin@smartattend.com'
+        from: 'smartattend-alerts@company.com'
+        subject: '🗄️🚨 CRITICAL DATABASE ALERT: {{ template "alert.summary" . }}'
+        html: '{{ template "email.html" . }}'
+
+  # Critical security alerts with immediate escalation
+  - name: 'critical-security'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/critical-security'
+        send_resolved: true
+        title: '🔒🚨 CRITICAL SECURITY ALERT'
+        text: |
+          🔒🚨 CRITICAL SECURITY INCIDENT DETECTED
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Source IP:** {{ .Labels.source_ip }}
+          **User:** {{ .Labels.user }}
+          **Instance:** {{ .Labels.instance }}
+          **Started:** {{ .StartsAt }}
+          
+          **IMMEDIATE ACTIONS:**
+          1. Isolate affected systems
+          2. Review authentication logs
+          3. Check for lateral movement
+          4. Contact security team immediately
+          5. Consider blocking source IP
+          
+          **Escalation:** Security team must respond within 5 minutes
+          {{ end }}
+    email_configs:
+      - to: 'security@smartattend.com, soc@smartattend.com, ciso@smartattend.com'
+        from: 'smartattend-alerts@company.com'
+        subject: '🔒🚨 CRITICAL SECURITY ALERT: {{ template "alert.summary" . }}'
+        html: '{{ template "email.html" . }}'
+        headers:
+          X-Priority: '1'
+          X-Alert-Type: 'security-critical'
+
+  # PostgreSQL-specific alerts
+  - name: 'postgresql-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/postgresql'
+        send_resolved: true
+        title: '🐘 PostgreSQL Alert'
+        text: |
+          🐘 PostgreSQL Database Alert
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Database:** {{ .Labels.datname }}
+          **Instance:** {{ .Labels.instance }}
+          
+          **PostgreSQL Troubleshooting:**
+          1. Check PostgreSQL status: `systemctl status postgresql`
+          2. Review PostgreSQL logs: `tail -f /var/log/postgresql/postgresql-*.log`
+          3. Check active connections: `SELECT count(*) FROM pg_stat_activity;`
+          4. Check replication status: `SELECT * FROM pg_stat_replication;`
+          5. Monitor query performance: `SELECT query, calls, total_time FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;`
+          
+          **Dashboard:** http://grafana:3000/d/postgresql-overview
           {{ end }}
 
-  # Development team alerts
-  - name: 'dev-team'
+  # Connection pool alerts
+  - name: 'database-pool-team'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/development'
+      - url: 'http://webhook-receiver:5001/webhook/database-pool'
         send_resolved: true
-        title: '💻 Application Alert - SmartAttend'
+        title: '🔗 Database Connection Pool Alert'
         text: |
-          {{ range .Alerts }}
-          Application Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Service: {{ .Labels.service }}
-          Instance: {{ .Labels.instance }}
-          Error Rate: {{ .Labels.error_rate }}
+          🔗 Database Connection Pool Issue
           
-          Quick Actions:
-          1. Check application logs: docker logs smartAttendsystembackend
-          2. Check metrics dashboard: http://grafana:3000/d/app-metrics
-          3. Review error traces: http://jaeger:16686
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Pool:** {{ .Labels.pool }}
+          **Instance:** {{ .Labels.instance }}
+          
+          **PgBouncer Troubleshooting:**
+          1. Check PgBouncer status: `docker logs pgbouncer --tail 20`
+          2. Monitor pool stats: Connect to pgbouncer admin and run `SHOW POOLS;`
+          3. Check connection limits: `SHOW CONFIG;`
+          4. Review client connections: `SHOW CLIENTS;`
+          5. Check server connections: `SHOW SERVERS;`
+          
+          **Quick Fix:** Restart PgBouncer if necessary: `docker restart pgbouncer`
           {{ end }}
 
-  # Security team alerts
-  - name: 'security-team'
+  # Development team error alerts
+  - name: 'dev-team-errors'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/security'
+      - url: 'http://webhook-receiver:5001/webhook/dev-errors'
         send_resolved: true
-        title: '🔒 Security Alert - SmartAttend'
+        title: '💥 Application Error Alert'
         text: |
-          {{ range .Alerts }}
-          🔒 SECURITY ALERT 🔒
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Source IP: {{ .Labels.source_ip }}
-          User: {{ .Labels.user }}
-          Instance: {{ .Labels.instance }}
+          💥 High Error Rate Detected
           
-          IMMEDIATE ACTIONS REQUIRED:
-          1. Review authentication logs
-          2. Check for suspicious IP addresses
-          3. Monitor user activity patterns
-          4. Consider implementing IP blocking
-          5. Review security dashboard: http://grafana:3000/d/security
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Service:** {{ .Labels.service }}
+          **Error Rate:** {{ .Labels.error_rate }}%
+          **Instance:** {{ .Labels.instance }}
+          
+          **Error Investigation Steps:**
+          1. Check application logs: `docker logs {{ .Labels.service }} --tail 50`
+          2. Review error dashboard: http://grafana:3000/d/application-errors
+          3. Check recent deployments: `git log --oneline -10`
+          4. Monitor error patterns: Check Loki for error trends
+          5. Review application metrics: http://grafana:3000/d/application-metrics
+          
+          **Escalation:** If error rate > 10%, page on-call developer
           {{ end }}
 
-  # Operations team alerts
-  - name: 'ops-team'
+  # Performance alerts
+  - name: 'dev-team-performance'
     webhook_configs:
-      - url: 'http://localhost:5001/webhook/operations'
+      - url: 'http://webhook-receiver:5001/webhook/dev-performance'
         send_resolved: true
-        title: '⚙️ Infrastructure Alert - SmartAttend'
+        title: '🐌 Performance Alert'
         text: |
-          {{ range .Alerts }}
-          Infrastructure Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Service: {{ .Labels.service }}
-          Instance: {{ .Labels.instance }}
-          Node: {{ .Labels.node }}
+          🐌 Performance Degradation Detected
           
-          System Status:
-          1. Check system metrics: http://grafana:3000/d/node-exporter
-          2. Review container status: docker ps
-          3. Check disk space: df -h
-          4. Monitor network: netstat -tuln
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Service:** {{ .Labels.service }}
+          **Response Time:** {{ .Labels.response_time }}ms
+          **Instance:** {{ .Labels.instance }}
+          
+          **Performance Investigation:**
+          1. Check response time dashboard: http://grafana:3000/d/performance-metrics
+          2. Review slow queries: Check database performance
+          3. Monitor resource usage: CPU, Memory, Disk I/O
+          4. Check for memory leaks: Monitor heap usage
+          5. Review recent code changes: `git log --since="1 hour ago"`
+          
+          **Immediate Actions:**
+          - Scale horizontally if needed
+          - Check for resource bottlenecks
+          - Review database query performance
+          {{ end }}
+
+  # Service outage alerts
+  - name: 'dev-team-outages'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/dev-outages'
+        send_resolved: true
+        title: '🚫 Service Outage Alert'
+        text: |
+          🚫 SERVICE OUTAGE DETECTED
+          
+          {{ range .Alerts }}
+          **Service:** {{ .Labels.service }} is DOWN
+          **Instance:** {{ .Labels.instance }}
+          **Duration:** {{ .StartsAt }}
+          
+          **IMMEDIATE RECOVERY STEPS:**
+          1. Check service status: `docker ps | grep {{ .Labels.service }}`
+          2. Restart service: `docker restart {{ .Labels.service }}`
+          3. Check health endpoint: `curl http://{{ .Labels.instance }}/health`
+          4. Review startup logs: `docker logs {{ .Labels.service }} --tail 30`
+          5. Monitor recovery: Check service metrics
+          
+          **Escalation Path:**
+          - 0-2 min: Auto-restart attempt
+          - 2-5 min: Developer notification
+          - 5+ min: Team lead escalation
+          {{ end }}
+    email_configs:
+      - to: 'dev-team@smartattend.com, on-call@smartattend.com'
+        from: 'smartattend-alerts@company.com'
+        subject: '🚫 SERVICE OUTAGE: {{ template "alert.summary" . }}'
+        html: '{{ template "email.html" . }}'
+
+  # Infrastructure resource alerts
+  - name: 'ops-team-resources'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/ops-resources'
+        send_resolved: true
+        title: '📊 Resource Alert'
+        text: |
+          📊 Resource Utilization Alert
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Resource:** {{ .Labels.resource }}
+          **Utilization:** {{ .Labels.utilization }}%
+          **Instance:** {{ .Labels.instance }}
+          
+          **Resource Management:**
+          1. Check current usage: `htop` or `docker stats`
+          2. Identify resource-heavy processes: `ps aux --sort=-%cpu | head -10`
+          3. Check disk usage: `df -h` and `du -sh /*`
+          4. Monitor I/O: `iostat -x 1 5`
+          5. Review resource trends: http://grafana:3000/d/system-overview
+          
+          **Mitigation Steps:**
+          - Scale resources if needed
+          - Clean up temporary files
+          - Restart resource-heavy services
+          - Consider resource limits adjustment
+          {{ end }}
+
+  # Network alerts
+  - name: 'ops-team-network'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/ops-network'
+        send_resolved: true
+        title: '🌐 Network Alert'
+        text: |
+          🌐 Network Connectivity Issue
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Network:** {{ .Labels.network }}
+          **Instance:** {{ .Labels.instance }}
+          
+          **Network Troubleshooting:**
+          1. Check network connectivity: `ping 8.8.8.8`
+          2. Review network interfaces: `ip addr show`
+          3. Check routing table: `ip route show`
+          4. Monitor network traffic: `netstat -tuln`
+          5. Check DNS resolution: `nslookup google.com`
+          
+          **Container Networking:**
+          1. Check Docker networks: `docker network ls`
+          2. Inspect network config: `docker network inspect bridge`
+          3. Check container connectivity: `docker exec -it container ping target`
+          {{ end }}
+
+  # Authentication security alerts
+  - name: 'security-auth-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/security-auth'
+        send_resolved: true
+        title: '🔐 Authentication Security Alert'
+        text: |
+          🔐 Authentication Security Event
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **User:** {{ .Labels.user }}
+          **Source IP:** {{ .Labels.source_ip }}
+          **Failed Attempts:** {{ .Labels.attempts }}
+          
+          **Authentication Investigation:**
+          1. Check authentication logs: `grep "authentication failure" /var/log/auth.log`
+          2. Review user activity: Check user session logs
+          3. Analyze source IP: `whois {{ .Labels.source_ip }}`
+          4. Check for brute force patterns: Review login attempt frequency
+          5. Monitor affected accounts: Check for successful logins
+          
+          **Immediate Actions:**
+          - Consider temporary account lockout
+          - Block suspicious IP addresses
+          - Force password reset if needed
+          - Enable additional MFA
+          {{ end }}
+
+  # SOC team alerts for suspicious activity
+  - name: 'security-soc-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/security-soc'
+        send_resolved: true
+        title: '🛡️ SOC Alert - Suspicious Activity'
+        text: |
+          🛡️ SUSPICIOUS ACTIVITY DETECTED
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Activity Type:** {{ .Labels.activity_type }}
+          **Source:** {{ .Labels.source_ip }}
+          **Target:** {{ .Labels.target }}
+          **Confidence:** {{ .Labels.confidence }}
+          
+          **SOC INVESTIGATION PROTOCOL:**
+          1. **Immediate Assessment:**
+             - Verify alert legitimacy
+             - Assess threat level
+             - Check for related incidents
+          
+          2. **Evidence Collection:**
+             - Capture network traffic
+             - Save relevant logs
+             - Document timeline
+             - Screenshot evidence
+          
+          3. **Containment:**
+             - Isolate affected systems
+             - Block malicious IPs
+             - Preserve evidence
+             - Notify stakeholders
+          
+          4. **Analysis:**
+             - Determine attack vector
+             - Assess impact scope
+             - Identify IOCs
+             - Check for persistence
+          
+          **ESCALATION REQUIRED** - Respond within 2 minutes
+          {{ end }}
+    email_configs:
+      - to: 'soc@smartattend.com, security-manager@smartattend.com'
+        from: 'smartattend-alerts@company.com'
+        subject: '🛡️ SOC ALERT: {{ template "alert.summary" . }}'
+        html: '{{ template "email.html" . }}'
+        headers:
+          X-Priority: '1'
+          X-Alert-Type: 'security-soc'
+
+  # Business metrics alerts
+  - name: 'business-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/business'
+        send_resolved: true
+        title: '📈 Business Metrics Alert'
+        text: |
+          📈 Business Metrics Alert
+          
+          {{ range .Alerts }}
+          **Metric:** {{ .Annotations.summary }}
+          **Current Value:** {{ .Labels.current_value }}
+          **Threshold:** {{ .Labels.threshold }}
+          **Impact:** {{ .Annotations.business_impact }}
+          
+          **Business Impact Analysis:**
+          1. Review business dashboard: http://grafana:3000/d/business-metrics
+          2. Check user activity trends: Monitor active users
+          3. Analyze conversion rates: Review funnel metrics
+          4. Compare with historical data: Check seasonal patterns
+          5. Assess revenue impact: Calculate potential loss
+          
+          **Recommended Actions:**
+          - Investigate root cause
+          - Consider marketing interventions
+          - Review system performance
+          - Check for external factors
+          {{ end }}
+
+  # User activity business alerts
+  - name: 'business-user-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/business-users'
+        send_resolved: true
+        title: '👥 User Activity Alert'
+        text: |
+          👥 User Activity Alert
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Current Users:** {{ .Labels.current_users }}
+          **Expected Users:** {{ .Labels.expected_users }}
+          **Drop Percentage:** {{ .Labels.drop_percentage }}%
+          
+          **User Activity Investigation:**
+          1. Check user dashboard: http://grafana:3000/d/user-activity
+          2. Review system performance: Ensure no outages
+          3. Check authentication systems: Verify login process
+          4. Analyze user journey: Check for bottlenecks
+          5. Review recent changes: Check for breaking changes
+          
+          **Immediate Actions:**
+          - Verify system availability
+          - Check for performance issues
+          - Review error rates
+          - Contact customer support team
+          {{ end }}
+
+  # Maintenance window notifications
+  - name: 'maintenance-team'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/maintenance'
+        send_resolved: true
+        title: '🔧 Maintenance Window Alert'
+        text: |
+          🔧 Maintenance Window Notification
+          
+          {{ range .Alerts }}
+          **Status:** {{ .Annotations.summary }}
+          **Maintenance Type:** {{ .Labels.maintenance_type }}
+          **Duration:** {{ .Labels.duration }}
+          **Services Affected:** {{ .Labels.services }}
+          
+          **Maintenance Coordination:**
+          1. Notify all stakeholders
+          2. Prepare rollback procedures
+          3. Monitor critical services
+          4. Coordinate with teams
+          5. Document changes
+          
+          Note: Alerts are suppressed during maintenance windows
+          {{ end }}
+
+  # Development environment alerts (lower priority)
+  - name: 'dev-environment'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/dev-environment'
+        send_resolved: true
+        title: '🧪 Development Environment Alert'
+        text: |
+          🧪 Development Environment Issue
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Environment:** {{ .Labels.environment }}
+          **Service:** {{ .Labels.service }}
+          
+          **Dev Environment Troubleshooting:**
+          1. Check development services: `docker-compose ps`
+          2. Review logs: `docker-compose logs --tail 20`
+          3. Restart if needed: `docker-compose restart {{ .Labels.service }}`
+          4. Check resource usage: Development resources may be limited
+          5. Verify configuration: Check environment variables
+          
+          Note: Development alerts are lower priority
+          {{ end }}
+
+  # Warning-level alerts with extended context
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/warnings'
+        send_resolved: true
+        title: '⚠️ Warning Alert'
+        text: |
+          ⚠️ Warning Level Alert
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Severity:** Warning
+          **Service:** {{ .Labels.service }}
+          **Current Value:** {{ .Labels.current_value }}
+          **Threshold:** {{ .Labels.threshold }}
+          
+          **Warning Investigation:**
+          1. Monitor trends: Check if condition is worsening
+          2. Review recent changes: Check for correlations
+          3. Assess impact: Determine if immediate action needed
+          4. Plan preventive measures: Avoid escalation to critical
+          5. Document observations: For future reference
+          
+          **Proactive Actions:**
+          - Monitor closely for escalation
+          - Prepare mitigation steps
+          - Consider resource adjustments
+          {{ end }}
+
+  # Fallback receiver for any unmatched alerts
+  - name: 'fallback'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/webhook/fallback'
+        send_resolved: true
+        title: '❓ Unmatched Alert'
+        text: |
+          ❓ Alert did not match any specific routing rules
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Labels:** {{ .Labels }}
+          
+          This alert should be reviewed to ensure proper routing.
+          Consider updating Alertmanager routing rules.
           {{ end }}

@@ -665,16 +665,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.27.0
     container_name: alertmanager
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
       - '--web.external-url=https://${DOMAIN}/alertmanager/'
       - '--web.route-prefix=/'
-      - '--config.expand-env=true'
+      - '--cluster.listen-address=0.0.0.0:9094'
+      - '--web.listen-address=0.0.0.0:9093'
+      - '--log.level=info'
     ports:
       - "9093:9093"
     environment:
