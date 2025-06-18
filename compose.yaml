@@ -665,7 +665,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
   alertmanager:
     image: prom/alertmanager:latest
     container_name: alertmanager
@@ -676,6 +675,34 @@ services:
       - '--web.route-prefix=/'
     ports:
       - "9093:9093"
+    environment:
+      # SMTP Configuration
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - ALERT_EMAIL_FROM=${ALERT_EMAIL_FROM}
+      
+      # Email Recipients
+      - DEFAULT_ALERT_EMAIL=${DEFAULT_ALERT_EMAIL}
+      - CRITICAL_ALERT_EMAIL=${CRITICAL_ALERT_EMAIL}
+      - DATABASE_TEAM_EMAIL=${DATABASE_TEAM_EMAIL}
+      - DEV_TEAM_EMAIL=${DEV_TEAM_EMAIL}
+      - SECURITY_TEAM_EMAIL=${SECURITY_TEAM_EMAIL}
+      - OPS_TEAM_EMAIL=${OPS_TEAM_EMAIL}
+      
+      # Slack Configuration
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - SLACK_CRITICAL_WEBHOOK=${SLACK_CRITICAL_WEBHOOK}
+      - SLACK_DB_WEBHOOK=${SLACK_DB_WEBHOOK}
+      - SLACK_DEV_WEBHOOK=${SLACK_DEV_WEBHOOK}
+      - SLACK_SECURITY_WEBHOOK=${SLACK_SECURITY_WEBHOOK}
+      - SLACK_OPS_WEBHOOK=${SLACK_OPS_WEBHOOK}
+      
+      # PagerDuty Configuration
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
+    env_file:
+      - .env
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
       - alertmanager_data:/alertmanager

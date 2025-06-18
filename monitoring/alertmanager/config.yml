@@ -4,22 +4,13 @@
 # =============================================================================
 
 global:
-  # SMTP configuration for email alerts
-  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
-  smtp_from: '${ALERT_EMAIL_FROM}'
-  smtp_auth_username: '${SMTP_USERNAME}'
-  smtp_auth_password: '${SMTP_PASSWORD}'
-  smtp_require_tls: true
-
-  # Slack configuration
-  slack_api_url: '${SLACK_WEBHOOK_URL}'
-
-  # Default template path
-  templates:
-    - '/etc/alertmanager/templates/*.tmpl'
+  # SMTP configuration for email alerts (only if configured)
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@smartattend.local'
+  smtp_require_tls: false
 
 # Route configuration
-route:
+route:  
   group_by: ['alertname', 'service']
   group_wait: 30s
   group_interval: 5m
@@ -71,19 +62,12 @@ inhibit_rules:
       severity: 'warning'
     equal: ['alertname', 'instance']
 
-  # Inhibit application alerts if the entire system is down
-  - source_match:
-      alertname: 'ApplicationDown'
-    target_match_re:
-      alertname: '(HighHTTPErrorRate|HighResponseTime|CeleryQueueBackedUp)'
-    equal: ['instance']
-
 # Receiver configurations
 receivers:
   # Default receiver (fallback)
   - name: 'default'
     email_configs:
-      - to: '${DEFAULT_ALERT_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '[ALERT] SmartAttend System Alert'
         body: |
           {{ range .Alerts }}
@@ -94,10 +78,10 @@ receivers:
           Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
           {{ end }}
 
-  # Critical alerts - multiple channels
+  # Critical alerts - email notification
   - name: 'critical-alerts'
     email_configs:
-      - to: '${CRITICAL_ALERT_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '🚨 [CRITICAL] SmartAttend System Alert'
         html: |
           <h2>🚨 Critical Alert - SmartAttend System</h2>
@@ -110,33 +94,11 @@ receivers:
             <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
           </div>
           {{ end }}
-          
-    slack_configs:
-      - api_url: '${SLACK_CRITICAL_WEBHOOK}'
-        channel: '#alerts-critical'
-        title: '🚨 Critical Alert - SmartAttend'
-        text: |
-          {{ range .Alerts }}
-          *Alert:* {{ .Annotations.summary }}
-          *Description:* {{ .Annotations.description }}
-          *Service:* {{ .Labels.service }}
-          *Instance:* {{ .Labels.instance }}
-          *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
-          {{ end }}
-        color: 'danger'
-
-    # PagerDuty integration for critical alerts
-    pagerduty_configs:
-      - routing_key: '${PAGERDUTY_ROUTING_KEY}'
-        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
-        details:
-          service: '{{ range .Alerts }}{{ .Labels.service }}{{ end }}'
-          instance: '{{ range .Alerts }}{{ .Labels.instance }}{{ end }}'
 
   # Database team alerts
   - name: 'database-team'
     email_configs:
-      - to: '${DATABASE_TEAM_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '[DB ALERT] SmartAttend Database Issue'
         body: |
           Database Alert Detected:
@@ -154,16 +116,10 @@ receivers:
           3. Monitor resource usage in Grafana
           {{ end }}
 
-    slack_configs:
-      - api_url: '${SLACK_DB_WEBHOOK}'
-        channel: '#db-alerts'
-        title: '🗄️ Database Alert - SmartAttend'
-        color: 'warning'
-
   # Development team alerts
   - name: 'dev-team'
     email_configs:
-      - to: '${DEV_TEAM_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '[APP ALERT] SmartAttend Application Issue'
         body: |
           Application Alert:
@@ -176,16 +132,10 @@ receivers:
           Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
           {{ end }}
 
-    slack_configs:
-      - api_url: '${SLACK_DEV_WEBHOOK}'
-        channel: '#dev-alerts'
-        title: '💻 Application Alert - SmartAttend'
-        color: 'warning'
-
   # Security team alerts
   - name: 'security-team'
     email_configs:
-      - to: '${SECURITY_TEAM_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '🔒 [SECURITY] SmartAttend Security Alert'
         body: |
           Security Alert Detected:
@@ -203,16 +153,10 @@ receivers:
           4. Consider implementing IP blocking if needed
           {{ end }}
 
-    slack_configs:
-      - api_url: '${SLACK_SECURITY_WEBHOOK}'
-        channel: '#security-alerts'
-        title: '🔒 Security Alert - SmartAttend'
-        color: 'danger'
-
   # Operations team alerts
   - name: 'ops-team'
     email_configs:
-      - to: '${OPS_TEAM_EMAIL}'
+      - to: 'admin@smartattend.local'
         subject: '[OPS ALERT] SmartAttend Infrastructure Issue'
         body: |
           Infrastructure Alert:
@@ -224,14 +168,3 @@ receivers:
           Instance: {{ .Labels.instance }}
           Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
           {{ end }}
-
-    slack_configs:
-      - api_url: '${SLACK_OPS_WEBHOOK}'
-        channel: '#ops-alerts'
-        title: '⚙️ Infrastructure Alert - SmartAttend'
-        color: 'warning'
-
-# Templates for custom alert formatting
-templates:
-  - '/etc/alertmanager/templates/email.tmpl'
-  - '/etc/alertmanager/templates/slack.tmpl'
