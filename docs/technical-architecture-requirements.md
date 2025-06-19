@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines the technical architecture and infrastructure requirements for the NNP Smart Roster System deployment across different scales and complexity levels.
+This document outlines the technical architecture and infrastructure requirements for the Signox LogX System deployment across different scales and complexity levels.
 
 ---
 
@@ -538,7 +538,7 @@ This document outlines the technical architecture and infrastructure requirement
 
 ## Conclusion
 
-The technical architecture and infrastructure requirements for the NNP Smart Roster System scale significantly based on institution size and complexity. Proper planning and implementation of the infrastructure components outlined in this document are critical for system success.
+The technical architecture and infrastructure requirements for the Signox LogX System scale significantly based on institution size and complexity. Proper planning and implementation of the infrastructure components outlined in this document are critical for system success.
 
 ### Key Recommendations
 
@@ -560,4 +560,4 @@ The technical architecture and infrastructure requirements for the NNP Smart Ros
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Technical Team
+**Document Owner:** Signox LogX Technical Team

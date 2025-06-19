@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines comprehensive training and change management requirements for successful implementation and adoption of the NNP Smart Roster System. It addresses the human aspects of system implementation, ensuring all stakeholders are prepared and capable of using the new system effectively.
+This document outlines comprehensive training and change management requirements for successful implementation and adoption of the Signox LogX System. It addresses the human aspects of system implementation, ensuring all stakeholders are prepared and capable of using the new system effectively.
 
 ---
 
@@ -14,7 +14,7 @@ This document outlines comprehensive training and change management requirements
 
 1. **Create Urgency**: Highlight current system limitations and benefits of new system
 2. **Form a Guiding Coalition**: Establish implementation team with executive sponsorship
-3. **Develop Vision and Strategy**: Clear vision of future state with NNP Smart Roster
+3. **Develop Vision and Strategy**: Clear vision of future state with Signox LogX
 4. **Communicate the Vision**: Comprehensive communication plan across all stakeholders
 5. **Empower Broad-Based Action**: Remove barriers and enable champions
 6. **Generate Short-Term Wins**: Celebrate early achievements and quick wins
@@ -568,7 +568,7 @@ This document outlines comprehensive training and change management requirements
 
 ## Conclusion
 
-Successful implementation of the NNP Smart Roster System depends heavily on effective training and change management. This comprehensive approach ensures all stakeholders are prepared, capable, and motivated to use the new system effectively.
+Successful implementation of the Signox LogX System depends heavily on effective training and change management. This comprehensive approach ensures all stakeholders are prepared, capable, and motivated to use the new system effectively.
 
 ### Key Success Factors
 1. **Executive Sponsorship**: Strong leadership support and commitment
@@ -588,4 +588,4 @@ Successful implementation of the NNP Smart Roster System depends heavily on effe
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Training and Change Management Team
+**Document Owner:** Signox LogX Training and Change Management Team

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines the comprehensive deployment and go-live strategy for the NNP Smart Roster System. It provides detailed guidance on deployment approaches, technical implementation, risk management, and post-deployment support to ensure successful system launch and adoption.
+This document outlines the comprehensive deployment and go-live strategy for the Signox LogX System. It provides detailed guidance on deployment approaches, technical implementation, risk management, and post-deployment support to ensure successful system launch and adoption.
 
 ---
 
@@ -581,7 +581,7 @@ This document outlines the comprehensive deployment and go-live strategy for the
 
 ## Conclusion
 
-Successful deployment and go-live of the NNP Smart Roster System requires careful planning, thorough preparation, and excellent execution. This comprehensive strategy provides the framework for minimizing risks while maximizing the chances of successful implementation.
+Successful deployment and go-live of the Signox LogX System requires careful planning, thorough preparation, and excellent execution. This comprehensive strategy provides the framework for minimizing risks while maximizing the chances of successful implementation.
 
 ### Critical Success Factors
 1. **Thorough Preparation**: Complete pre-go-live preparation and testing
@@ -601,4 +601,4 @@ Successful deployment and go-live of the NNP Smart Roster System requires carefu
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Deployment Team
+**Document Owner:** Signox LogX Deployment Team

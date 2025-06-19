@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines the comprehensive data requirements and migration specifications for implementing the NNP Smart Roster System. It serves as a guide for institutions to understand what data is needed, how it should be structured, and the process for migrating from existing systems.
+This document outlines the comprehensive data requirements and migration specifications for implementing the Signox LogX System. It serves as a guide for institutions to understand what data is needed, how it should be structured, and the process for migrating from existing systems.
 
 ---
 
@@ -33,8 +33,8 @@ This document outlines the comprehensive data requirements and migration specifi
     "registration_number": "REG/2023/001",
     "address": "P.O. Box 1234, Nyeri, Kenya",
     "phone": "+254-xxx-xxxxxx",
-    "email": "info@nnp.ac.ke",
-    "website": "https://www.nnp.ac.ke"
+    "email": "info@Signox .ac.ke",
+    "website": "https://www.Signox .ac.ke"
   },
   "departments": [
     {
@@ -106,12 +106,12 @@ This document outlines the comprehensive data requirements and migration specifi
       "first_name": "John",
       "last_name": "Doe",
       "middle_name": "Smith",
-      "student_id": "NNP/2023/001",
+      "student_id": "Signox /2023/001",
       "national_id": "12345678",
       "gender": "male",
       "date_of_birth": "2000-01-15",
       "phone": "+254-xxx-xxxxxx",
-      "email": "john.doe@student.nnp.ac.ke"
+      "email": "john.doe@student.Signox .ac.ke"
     },
     "academic": {
       "programme": "MECH_DIPLOMA",
@@ -267,7 +267,7 @@ Create comprehensive mapping between source and target fields:
 
 | Source Field | Target Field | Transformation | Validation |
 |-------------|-------------|----------------|------------|
-| Student_ID | trainee_id | Format: NNP/YYYY/### | Required, Unique |
+| Student_ID | trainee_id | Format: Signox /YYYY/### | Required, Unique |
 | Full_Name | first_name, last_name | Split by space | Required |
 | Course_Code | course.code | Uppercase | Required, Valid course |
 | Attendance_Date | session.date | Date format | Valid date range |
@@ -521,7 +521,7 @@ Create comprehensive mapping between source and target fields:
 
 ## Conclusion
 
-Proper data planning and management is crucial for successful implementation of the NNP Smart Roster System. This document provides the framework for understanding data requirements, ensuring data quality, and implementing robust data management practices.
+Proper data planning and management is crucial for successful implementation of the Signox LogX System. This document provides the framework for understanding data requirements, ensuring data quality, and implementing robust data management practices.
 
 ### Key Success Factors
 1. **Comprehensive Planning**: Thorough data assessment and planning
@@ -534,4 +534,4 @@ Proper data planning and management is crucial for successful implementation of 
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Data Management Team
+**Document Owner:** Signox LogX Data Management Team

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines comprehensive security and compliance requirements for the NNP Smart Roster System implementation. It addresses data protection, privacy regulations, security controls, and compliance frameworks to ensure the system meets all security and regulatory requirements.
+This document outlines comprehensive security and compliance requirements for the Signox LogX System implementation. It addresses data protection, privacy regulations, security controls, and compliance frameworks to ensure the system meets all security and regulatory requirements.
 
 ---
 
@@ -621,7 +621,7 @@ This document outlines comprehensive security and compliance requirements for th
 
 ## Conclusion
 
-The security and compliance specifications outlined in this document provide a comprehensive framework for implementing robust security controls and maintaining regulatory compliance for the NNP Smart Roster System. These specifications must be carefully implemented and continuously monitored to ensure ongoing security and compliance.
+The security and compliance specifications outlined in this document provide a comprehensive framework for implementing robust security controls and maintaining regulatory compliance for the Signox LogX System. These specifications must be carefully implemented and continuously monitored to ensure ongoing security and compliance.
 
 ### Key Implementation Priorities
 
@@ -643,4 +643,4 @@ The security and compliance specifications outlined in this document provide a c
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Security and Compliance Team
+**Document Owner:** Signox LogX Security and Compliance Team

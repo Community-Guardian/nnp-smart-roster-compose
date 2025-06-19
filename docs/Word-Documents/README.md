@@ -1,4 +1,4 @@
-# NNP Smart Roster - Word Document Generation
+# Signox LogX - Word Document Generation
 
 This folder contains tools and instructions for converting the Markdown specification documents to Microsoft Word (.docx) format.
 

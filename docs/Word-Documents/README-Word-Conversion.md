@@ -1,8 +1,8 @@
-# NNP Smart Roster System - Documentation Suite Overview
+# Signox LogX System - Documentation Suite Overview
 
 ## Document Collection Summary
 
-This folder contains comprehensive documentation for the NNP Smart Roster System implementation. All documents are in Markdown format and can be easily converted to Word (.docx) format using various tools.
+This folder contains comprehensive documentation for the Signox LogX System implementation. All documents are in Markdown format and can be easily converted to Word (.docx) format using various tools.
 
 ---
 
@@ -263,7 +263,7 @@ Write-Host "All conversions completed!"
 
 ## Conclusion
 
-The documentation suite provides comprehensive coverage of all aspects of NNP Smart Roster System implementation. Converting to Word format will make these documents more accessible for stakeholders who prefer traditional document formats while maintaining the flexibility of the original Markdown source.
+The documentation suite provides comprehensive coverage of all aspects of Signox LogX System implementation. Converting to Word format will make these documents more accessible for stakeholders who prefer traditional document formats while maintaining the flexibility of the original Markdown source.
 
 ### Next Steps
 1. Choose conversion method based on your needs and technical capabilities
@@ -274,6 +274,6 @@ The documentation suite provides comprehensive coverage of all aspects of NNP Sm
 ---
 
 **Document Created:** June 20, 2025  
-**Document Owner:** NNP Smart Roster Documentation Team  
+**Document Owner:** Signox LogX Documentation Team  
 **Format:** Markdown (ready for Word conversion)  
 **Total Pages:** ~290 pages across all documents

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document provides a comprehensive overview of the NNP Smart Roster System features and functionality. It serves as a detailed guide for understanding system capabilities, user workflows, and technical features available across different user roles and deployment scenarios.
+This document provides a comprehensive overview of the Signox LogX System features and functionality. It serves as a detailed guide for understanding system capabilities, user workflows, and technical features available across different user roles and deployment scenarios.
 
 ---
 
@@ -277,7 +277,7 @@ This document provides a comprehensive overview of the NNP Smart Roster System f
 
 #### Learning Management Systems (LMS)
 - **Course Content**: Integration with course materials and assignments
-- **Grade Sync**: Grade passback from LMS to Smart Roster
+- **Grade Sync**: Grade passback from LMS to LogX
 - **Attendance Correlation**: Link attendance to academic performance
 - **Single Sign-On**: Shared authentication across systems
 - **Activity Tracking**: Student engagement across platforms
@@ -463,7 +463,7 @@ This document provides a comprehensive overview of the NNP Smart Roster System f
 
 ## Conclusion
 
-The NNP Smart Roster System provides a comprehensive suite of features designed to meet the diverse needs of educational institutions. From basic attendance tracking to advanced analytics and AI-powered insights, the system offers scalable solutions that grow with institutional requirements.
+The Signox LogX System provides a comprehensive suite of features designed to meet the diverse needs of educational institutions. From basic attendance tracking to advanced analytics and AI-powered insights, the system offers scalable solutions that grow with institutional requirements.
 
 ### Key Benefits
 - **Comprehensive Functionality**: Complete attendance and academic management solution
@@ -483,4 +483,4 @@ The NNP Smart Roster System provides a comprehensive suite of features designed 
 
 **Document Version:** 1.0  
 **Last Updated:** June 2025  
-**Document Owner:** NNP Smart Roster Product Team
+**Document Owner:** Signox LogX Product Team
