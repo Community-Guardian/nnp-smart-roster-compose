@@ -112,7 +112,7 @@ def handle_critical_alert(self, alert):
 ### Service Down Alert
 ```
 🚨 CRITICAL: Service backend is down
-Instance: smartAttendsystembackend:8000
+Instance: signoxlogxsytembackend:8000
 Duration: 2 minutes
 Runbook: https://docs.smartattend.com/runbooks/service-down
 Action: Check container logs and restart if necessary

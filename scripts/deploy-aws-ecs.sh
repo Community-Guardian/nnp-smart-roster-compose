@@ -102,8 +102,8 @@ build_and_push_images() {
     docker-compose -f docker-compose.yml build
     
     # Tag images for ECR
-    docker tag nrad8393/smart-attend-system-backend-server:latest ${ECR_URI}:backend-latest
-    docker tag nrad8393/smart-attend-system-frontend-server:latest ${ECR_URI}:frontend-latest
+    docker tag nrad8393/signox-logx-system-backend-server:latest ${ECR_URI}:backend-latest
+    docker tag nrad8393/signox-logx-system-frontend-server:latest ${ECR_URI}:frontend-latest
     docker tag nginx:alpine ${ECR_URI}:nginx-latest
     docker tag postgres:15-alpine ${ECR_URI}:postgres-latest
     docker tag redis:7-alpine ${ECR_URI}:redis-latest

@@ -18,8 +18,8 @@
 # --------------
 # - postgres-primary/replica: PostgreSQL cluster with read replicas
 # - pgbouncer: Connection pooling and load balancing for database
-# - smartAttendsystembackend: Horizontally scaled backend services
-# - smartAttendsystemfrontend: Load-balanced frontend services  
+# - signoxlogxsytembackend: Horizontally scaled backend services
+# - signoxlogxsytemfrontend: Load-balanced frontend services  
 # - nginx-lb: Production-grade load balancer with SSL termination
 # - redis-cluster: High availability Redis cluster
 #
@@ -339,8 +339,8 @@ services:
   # APPLICATION BACKEND - Horizontally Scaled
   # =============================================================================
   
-  smartAttendsystembackend:
-    image: nrad8393/smart-attend-system-backend-server:latest
+  signoxlogxsytembackend:
+    image: nrad8393/signox-logx-system-backend-server:latest
     deploy:
       replicas: 4
       resources:
@@ -434,7 +434,7 @@ services:
   # =============================================================================
   
   celery-worker:
-    image: nrad8393/smart-attend-system-backend-server:latest
+    image: nrad8393/signox-logx-system-backend-server:latest
     command: sh -c "cd smartAttend && celery -A smartAttend worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=1000"
     deploy:
       replicas: 3
@@ -470,7 +470,7 @@ services:
       timeout: 10s
       retries: 3
   celery-beat:
-    image: nrad8393/smart-attend-system-backend-server:latest
+    image: nrad8393/signox-logx-system-backend-server:latest
     command: sh -c "cd smartAttend && celery -A smartAttend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     environment:
       - CELERY_BROKER_URL=redis://redis-master:6379/0
@@ -500,8 +500,8 @@ services:
   # APPLICATION FRONTEND - Load Balanced
   # =============================================================================
   
-  smartAttendsystemfrontend:
-    image: nrad8393/smart-attend-system-frontend-server:latest
+  signoxlogxsytemfrontend:
+    image: nrad8393/signox-logx-system-frontend-server:latest
     deploy:
       replicas: 3
       resources:
@@ -532,7 +532,7 @@ services:
       - monitoring-network
     restart: unless-stopped
     depends_on:
-      smartAttendsystembackend:
+      signoxlogxsytembackend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
@@ -568,9 +568,9 @@ services:
       - monitoring-network
     restart: unless-stopped
     depends_on:
-      smartAttendsystembackend:
+      signoxlogxsytembackend:
         condition: service_healthy
-      smartAttendsystemfrontend:
+      signoxlogxsytemfrontend:
         condition: service_healthy
     deploy:
       resources:

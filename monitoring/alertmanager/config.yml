@@ -141,7 +141,7 @@ receivers:
           Error Rate: {{ .Labels.error_rate }}
           
           Quick Actions:
-          1. Check application logs: docker logs smartAttendsystembackend
+          1. Check application logs: docker logs signoxlogxsytembackend
           2. Check metrics dashboard: http://grafana:3000/d/app-metrics
           3. Review error traces: http://jaeger:16686
           {{ end }}

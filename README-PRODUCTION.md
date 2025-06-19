@@ -454,7 +454,7 @@ docker exec -it postgres-primary psql -U smartattend_user -c "SELECT count(*) FR
 #### Application Errors
 ```bash
 # Check application logs
-docker logs smartAttendsystembackend
+docker logs signoxlogxsytembackend
 
 # Check Celery workers
 docker logs celery-worker
@@ -469,7 +469,7 @@ curl -s http://localhost:9090/api/v1/query?query=rate(nginx_http_requests_total{
 docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 # Check for memory leaks
-docker exec -it smartAttendsystembackend ps aux --sort=-%mem | head
+docker exec -it signoxlogxsytembackend ps aux --sort=-%mem | head
 ```
 
 ### Performance Debugging
@@ -481,7 +481,7 @@ docker exec -it postgres-primary psql -U smartattend_user -c "SELECT query, mean
 docker exec -it redis-master redis-cli info stats
 
 # Application profiling
-docker exec -it smartAttendsystembackend python manage.py shell -c "
+docker exec -it signoxlogxsytembackend python manage.py shell -c "
 from django.test.utils import override_settings
 import cProfile
 # Profile critical code paths
