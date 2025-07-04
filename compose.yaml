@@ -552,7 +552,7 @@ services:
     image: nginx:alpine
     container_name: nginx-lb
     ports:
-      - "443:80"
+      # - "443:80"
       - "33:80"  
       # - "80:80"    # HTTP (redirects to HTTPS)    
     volumes:
