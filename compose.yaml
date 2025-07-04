@@ -517,14 +517,14 @@ services:
         max_attempts: 3
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://calm-deadly-kit.ngrok-free.app/smartAttend
-      - NEXT_PUBLIC_DOMAIN=calm-deadly-kit.ngrok-free.app
-      - NEXTAUTH_URL=https://calm-deadly-kit.ngrok-free.app/
+      - NEXT_PUBLIC_API_URL=https://logx.thenyeripoly.ac.ke/smartAttend
+      - NEXT_PUBLIC_DOMAIN=logx.thenyeripoly.ac.ke
+      - NEXTAUTH_URL=https://logx.thenyeripoly.ac.ke/
       - NEXTAUTH_SECRET=nextauth_secret_key_here_abcdefghijklmnopqrstuvwxyz
-      - DOMAIN=calm-deadly-kit.ngrok-free.app
-      - SITE_DOMAIN=calm-deadly-kit.ngrok-free.app
-      - NEXT_PUBLIC_APP_URL=https://calm-deadly-kit.ngrok-free.app/
-      - FRONTEND_URL=https://calm-deadly-kit.ngrok-free.app/
+      - DOMAIN=logx.thenyeripoly.ac.ke
+      - SITE_DOMAIN=logx.thenyeripoly.ac.ke
+      - NEXT_PUBLIC_APP_URL=https://logx.thenyeripoly.ac.ke/
+      - FRONTEND_URL=https://logx.thenyeripoly.ac.ke/
       - LOG_LEVEL=info
       - MONITORING_ENABLED=true
     networks:
