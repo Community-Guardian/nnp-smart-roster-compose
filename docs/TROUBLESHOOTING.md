@@ -143,8 +143,8 @@ Your environment has been updated with the correct values:
 - **Database**: PostgreSQL with `postgres:user@12345@postgres:5432/smartattend`
 - **Cache**: Redis at `redis://redis:6379/0`
 - **Domain**: `smartAttend.com` with ngrok tunnel
-- **API URL**: `https://calm-deadly-kit.ngrok-free.app/smartAttend`
-- **Frontend URL**: `https://calm-deadly-kit.ngrok-free.app/`
+- **API URL**: `https://logx.thenyeripoly.ac.ke/smartAttend`
+- **Frontend URL**: `https://logx.thenyeripoly.ac.ke/`
 
 ### Pre-Deployment Checklist
 
@@ -159,7 +159,7 @@ Your environment has been updated with the correct values:
 
 2. **Ensure ngrok Tunnel is Active**
    ```bash
-   curl -I https://calm-deadly-kit.ngrok-free.app/
+   curl -I https://logx.thenyeripoly.ac.ke/
    # Should return HTTP 200 or 302
    ```
 

@@ -118,7 +118,7 @@ if ($errors -eq 0) {
     Write-Host "🚀 Ready for deployment!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
-    Write-Host "1. Ensure ngrok tunnel is active: https://calm-deadly-kit.ngrok-free.app/" -ForegroundColor White
+    Write-Host "1. Ensure ngrok tunnel is active: https://logx.thenyeripoly.ac.ke/" -ForegroundColor White
     Write-Host "2. Start services: docker compose up -d" -ForegroundColor White
     Write-Host "3. Check logs: docker compose logs -f" -ForegroundColor White
 } else {

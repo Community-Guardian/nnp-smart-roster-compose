@@ -120,7 +120,7 @@ if [ $ERRORS -eq 0 ]; then
     echo "🚀 Ready for deployment!"
     echo ""
     echo "Next steps:"
-    echo "1. Ensure ngrok tunnel is active: https://calm-deadly-kit.ngrok-free.app/"
+    echo "1. Ensure ngrok tunnel is active: https://logx.thenyeripoly.ac.ke/"
     echo "2. Start services: docker compose up -d"
     echo "3. Check logs: docker compose logs -f"
 else
