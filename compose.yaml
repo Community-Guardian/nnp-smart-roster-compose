@@ -239,10 +239,6 @@ services:
       PGADMIN_LISTEN_PORT: 80
       GUNICORN_TIMEOUT: 120
       GUNICORN_WORKERS: 2
-      # Configure for reverse proxy
-      SCRIPT_NAME: '/pgadmin'
-      PGADMIN_CONFIG_APPLICATION_ROOT: '/pgadmin'
-      PGADMIN_CONFIG_PREFERRED_URL_SCHEME: 'https'
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json
