@@ -566,6 +566,7 @@ services:
     networks:
       - app-network
       - monitoring-network
+      - database-network
     restart: unless-stopped
     depends_on:
       smartAttendsystembackend:
