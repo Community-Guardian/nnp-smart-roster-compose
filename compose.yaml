@@ -553,7 +553,7 @@ services:
     container_name: nginx-lb
     ports:
       # - "443:80"
-      - "33:33"  
+      - "33:80"  
       # - "80:80"    # HTTP (redirects to HTTPS)    
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
