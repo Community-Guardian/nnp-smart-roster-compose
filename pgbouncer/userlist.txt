@@ -1,14 +1,2 @@
-# =============================================================================
-# PGBOUNCER USER LIST - PLAIN TEXT (for development/testing)
-# Format: "username" "password"
-# =============================================================================
-
-# Main application user - using plain text for easier setup
-"postgres" "user@12345"
-
-# Administrative users
-"pgbouncer_admin" "pgbouncer_admin_123"
-"pgbouncer_stats" "pgbouncer_stats_456"
-
-# Replication user
-"replicator" "user@12345"
+"postgres" "md5b832a1ff48bbdab9121bd1bde84958a7"
+"replicator" "md5b58de41b2da7441df1ffe1549a79ba3b"

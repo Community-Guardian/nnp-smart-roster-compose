@@ -178,26 +178,21 @@ services:
   # =============================================================================
   
   pgbouncer:
-    image: pgbouncer/pgbouncer:latest
+    image: edoburu/pgbouncer:latest
+    volumes:
+      - ./pgbouncer:/etc/pgbouncer:ro
     environment:
-      # Use the current postgres-primary container IP to avoid intermittent c-ares DNS
-      # lookup failures inside the pgbouncer image. This is a short-term workaround;
-      # if the postgres container is recreated its IP may change. A more robust
-      # solution is to add an explicit healthcheck/wait-for mechanism or configure
-      # the DNS/search options for the service.
-      DATABASES_HOST: 172.22.0.2
-      DATABASES_PORT: 5432
-      DATABASES_USER: ${POSTGRES_USER:-postgres}
-      DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-user@12345}
-      DATABASES_DBNAME: ${POSTGRES_DB:-smartattend}
-      POOL_MODE: transaction
-      SERVER_RESET_QUERY: DISCARD ALL
-      MAX_CLIENT_CONN: 1000
-      DEFAULT_POOL_SIZE: 100
-      MIN_POOL_SIZE: 10
-      RESERVE_POOL_SIZE: 10
-      MAX_DB_CONNECTIONS: 50
-      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+      # Use the edoburu pgbouncer image configuration style (stable in Agex).
+      # PGBOUNCER_DATABASE supports a libpq-style connection string to the
+      # primary database. Prefer service name resolution (postgres-primary).
+      PGBOUNCER_DATABASE: "host=postgres-primary port=5432 dbname=${POSTGRES_DB:-smartattend}"
+      PGBOUNCER_USER: ${POSTGRES_USER:-postgres}
+      PGBOUNCER_PASSWORD: ${POSTGRES_PASSWORD:-user@12345}
+      PGBOUNCER_AUTH_TYPE: md5
+      PGBOUNCER_POOL_MODE: session
+      PGBOUNCER_MAX_CLIENT_CONN: 2000
+      PGBOUNCER_DEFAULT_POOL_SIZE: 50
+      PGBOUNCER_MIN_POOL_SIZE: 10
     networks:
       - database-network
       - app-network
@@ -210,8 +205,11 @@ services:
         limits:
           memory: 512M
           cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 6432 || exit 1"]
+      test: ["CMD-SHELL", "PGPASSWORD=${POSTGRES_PASSWORD:-user@12345} psql -h localhost -p 6432 -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-smartattend} -c 'SELECT 1' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -547,7 +545,6 @@ services:
     image: nginx:alpine
     ports:
       - "802:80"
-      # - "80:80"    # HTTP (redirects to HTTPS)    
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
